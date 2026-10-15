@@ -152,15 +152,18 @@ A PreToolUse hook on every Bash call. It reads the command from the hook input, 
 | Any other alias, or none | **block** | **block** |
 | Listed alias whose instance URL is not a sandbox domain | **block** | **block** |
 
-Always blocked, whatever the target: `project deploy quick`, `org display --verbose`, and any `org` auth command run with `--json` (these print auth tokens or URLs).
+Always blocked, whatever the target: `project deploy quick`; `org display` (its output includes an access token, checked on sf CLI 2.145); `org open --url-only`; `org list --json`; `org login` and `org logout` (Jimmy manages logins); and the legacy `sfdx` command (use `sf`). The guard itself still runs `org display` internally to look up instance URLs; that output never reaches an agent.
 
 Commands outside the `sf` CLI's org-free subcommands (`sf project generate`, `sf --version`, `sf help` and similar) pass without a target check.
 
 ### 5.3 Sandbox URL check
 For each command on a listed alias, the guard resolves the instance URL once per alias with `sf org display -o <alias> --json` and caches it in `.team/org-cache.json` (git-ignored) for 24 hours. A sandbox URL contains `.sandbox.my.salesforce.com` (or the legacy `cs<NN>.salesforce.com` and `<domain>--<sandbox>.my.salesforce.com` patterns, kept in one list in `guard-org.mjs`). Anything else is treated as production and blocked.
 
-### 5.4 Fail-closed cases
-- `sf` run through `eval`, `xargs`, `bash -c`, `sh -c`, or a script file: blocked unless the command is clearly a read.
+### 5.4 Wrapped commands and fail-closed cases
+- `bash -c "…"`, `sh -c "…"`, `zsh -c "…"` and `eval "…"`: the guard checks the inner command text the same way.
+- `env`, `sudo`, `time`, `nice`, `nohup`, `command`, `exec` and `npx` in front of `sf` are skipped and the `sf` command is checked.
+- `xargs … sf …` (arguments unknown until run): blocked.
+- Running a script file (`bash x.sh`, `./x.sh`, `source x.sh`): the guard reads the script and blocks it if it contains an `sf` or `sfdx` command, asking the agent to run those commands directly.
 - The hook can't read `team.json` or the cache, or `sf org display` fails: block, with a reason telling the agent what to fix.
 
 ### 5.5 What a block does
