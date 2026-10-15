@@ -1,10 +1,11 @@
 # Salesforce Team Kit — Design Spec
 
 - **Date:** 2026-10-15
-- **Status:** Draft, awaiting Jimmy's review
+- **Status:** Approved by Jimmy, 2026-10-15
 - **Owner:** Jimmy (approver)
 - **Author:** Brainstorming session (Claude Code)
 - **Visual reference:** [2026-10-15-salesforce-team-kit-office-mockup.html](2026-10-15-salesforce-team-kit-office-mockup.html) (approved direction: isometric studio on a cloud, mood follows the clock). Open it in a normal browser, not the VS Code preview.
+- **Workflow demo:** [2026-10-15-salesforce-team-kit-workflow-demo.html](2026-10-15-salesforce-team-kit-workflow-demo.html) (one task from request to release, with handoffs, guard block, QA bounce-back and task progress; made-up data).
 - **Based on:** [2026-10-05-agent-team-kit-design.md](2026-10-05-agent-team-kit-design.md), the web-app kit this repo was cloned from.
 
 ---
@@ -52,7 +53,7 @@ This is a **new repo**, `salesforce-team-kit`. It starts as a clone of `agent-te
 - Rec1. Keep the main session's internal id `planner` (display name "Architect") so the engine code stays identical to upstream.
 - Rec2. Developer and Reviewer run on opus; Analyst, Admin and QA on sonnet.
 - Rec3. Don't authorise production in the `sf` CLI at all on the machine the team runs on.
-- Rec4. Decide whether the GitHub repo is public or private before the first push. The kit is public for free branch protection; keep org-specific details out of this repo either way (they live in the org skill).
+- Rec4. Keep org-specific details out of this repo (they live in the org skill), even though the repo is private (D-09).
 
 ---
 
@@ -224,7 +225,13 @@ The server, state engine, API, 3-second polling, and the logic of `Clipboard`, `
 `Building`, `Room`, `Figure` and `MailTube` are replaced by `IsoOffice`, an SVG scene built from `team.json`:
 - One desk per member, three per row, in `team.json` order. The approver sits in a glass corner office.
 - The office floats on a cloud. A **sandbox cloud** sits top right and a **production vault cloud** bottom right ("Production · deployed by Jimmy via change set").
-- Each person has a chip: status dot, name, current task. Working people type; blocked people get a red monitor and a blinking dot.
+- Each person has a chip: status dot, name, current task. People stay at their desks.
+- **The desk shows the state:**
+  - **Working:** the screen lights up in the person's colour with code scrolling, a keyboard light flickers, and a soft glow in their colour pulses on the floor around the desk.
+  - **Blocked:** a red screen with a flashing "!" and a fast red pulse.
+  - **Waiting on Jimmy:** an amber screen with blinking dots and a slow amber pulse. Jimmy's desk glows amber while something waits on him.
+  - **Done:** a green screen with a check mark.
+  - **Free:** a dim screensaver with a drifting dot.
 - Layout maths live in a pure module, `iso.ts` (projection, desk positions for any member count), so they can be unit tested.
 
 ### 8.3 Events shown in the office
@@ -232,7 +239,7 @@ The server, state engine, API, 3-second polling, and the logic of `Clipboard`, `
 | Office shows | Source |
 |---|---|
 | Status chip and animation | `status` events (unchanged) |
-| A person walking a folder from one desk to the next | `handoff` events (replaces the mail tube) |
+| A folder in the sender's colour flies in an arc from one desk to the next, with a small sparkle trail | `handoff` events (replaces the mail tube) |
 | A parcel flying to the sandbox cloud, then ✓ or ✗ with tests and coverage | new `deploy` event |
 | A parcel on Jimmy's desk: "Change set ready · N components" | new `release` event |
 | The parcel moves into the production vault | new `released` event |
@@ -248,6 +255,28 @@ The server, state engine, API, 3-second polling, and the logic of `Clipboard`, `
 
 `lib/state.mjs` folds these into `state.deploys` (latest per org), `state.releases` (per task: `ready` or `released`) and `state.guardBlocks` (last 10). The Clipboard shows an agent's last deploy; the List view gets a "Releases" section.
 
+### 8.4a Task progress
+Every task shows a completion percentage and a stage label. It is calculated by the state engine from events, not reported by agents, so it reflects where the task is in the pipeline. It goes down when work is sent back.
+
+| Milestone (event that sets it) | % | Stage label |
+|---|---|---|
+| `task` created | 5 | To do |
+| Work Order approval requested for the task | 20 | Waiting for approval |
+| All of the task's Work Order approvals `approved` | 30 | Approved |
+| Builders working on the task | 30 + 30 × average `--progress` of the builders on this task | Building |
+| `deploy --task <id> --result passed` | 65 | In sandbox |
+| `handoff --from qa --to reviewer` | 80 | QA passed |
+| `handoff --from reviewer --to planner` | 90 | Review passed |
+| `release` | 95 | Change set ready |
+| `released` | 100 | Released |
+| `handoff --from qa --to <builder>` or `--from reviewer --to <builder>` | back to the Building formula | Back to build |
+
+To link approvals to a task, `team-status approval` gets an optional `--task <id>` flag. Where the progress shows:
+- **Task board cards:** a bar, the percentage and the stage label.
+- **Office:** a "Tasks" cloud card in the top-left of the sky listing active tasks (up to five) with their bars.
+- **Clipboard:** the agent's current task with its bar.
+- **List view:** the same percentage and stage on each task row.
+
 ### 8.5 Day cycle
 `mood.ts` exports `moodAt(date)`, a pure function that returns a blended palette. Keyframes in local time:
 
@@ -255,13 +284,13 @@ The server, state engine, API, 3-second polling, and the logic of `Clipboard`, `
 |---|---|---|---|---|---|
 | Mood | Night shift | Sunrise | Mint morning | Twilight | Night shift |
 
-Between keyframes, every colour blends linearly; stars, lamp glow and the sun or moon fade in and out. The scene re-renders the palette once a minute. The four palettes are the ones in the mockup.
+Between keyframes, every colour blends in OKLCH (plain RGB blending turns peach-to-teal into a muddy olive, as the mockup shows around 10:00); stars, lamp glow and the sun or moon fade in and out. The scene re-renders the palette once a minute. The four palettes are the ones in the mockup.
 
 The theme picker replaces Cozy day / Night shift / Pastel with **Auto** (default) plus the four moods to pin. The choice is stored in `localStorage` (wrapped in try/catch). Page chrome (toolbar, clipboard, board, list view) takes its tokens from the current mood, so Night shift gives dark panels.
 
 ### 8.6 Interaction and accessibility
 - Desks are focusable buttons. Click or Enter opens the Clipboard. Each has an accessible label such as "Developer, blocked: 1 Apex test failing".
-- With `prefers-reduced-motion`, nothing walks, drifts, flies or bobs; states change in place.
+- With `prefers-reduced-motion`, nothing scrolls, pulses, drifts, flies or bobs; desks keep their state colours without animation.
 - Below 480px the page opens in List view (unchanged).
 - Status is never shown by colour alone: chips carry text and the List view has the same information.
 
@@ -278,6 +307,7 @@ During the build: install the Impeccable plugin, run `/impeccable init` with thi
 | Installer | Existing tests updated for the new copy list; new tests for the `sf`/Code Analyzer checks, the `git init` offer, deny rules added and removed, and the org skill warning. |
 | CLI and state | New tests for `deploy`, `release`, `released` and `guard_blocked`; all existing state, server and CLI tests pass unchanged. |
 | Dashboard units | `moodAt` (keyframes, blends, midnight wrap), `iso.ts` layouts for 3, 6 and 9 members. |
+| Task progress | Each milestone in section 8.4a, a QA bounce-back lowering the percentage, average builder progress, a task with no Work Order. |
 | End to end | Playwright specs updated for the new office; screenshots of all four moods with a fixed clock; reduced-motion run; phone width opens List view. |
 | Skills | Pressure scenarios per skill (section 7.1). |
 | CI | The kit's existing workflow: lint, typecheck, unit tests, e2e. |
@@ -305,3 +335,4 @@ During the build: install the Impeccable plugin, run `/impeccable init` with thi
 | D-06 | `sf` CLI plus Code Analyzer; no MCP | Commands a hook can read and block |
 | D-07 | Isometric studio on a cloud, mood follows the clock | Chosen from five designs and four moods |
 | D-08 | Keep `planner` as the Architect's internal id | Engine stays identical to upstream |
+| D-09 | The GitHub repo is private | Work-related kit. GitHub Free does not enforce branch protection on private repos, so "never push to `main`" relies on the agent rules and the Reviewer, not GitHub settings |
