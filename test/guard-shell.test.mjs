@@ -122,3 +122,33 @@ test('shells, eval and xargs behind wrapper options are unwrapped', () => {
   expect(unwrap(['sudo', '-u', 'root', 'xargs', 'sf', 'org', 'list'])).toEqual(
     { kind: 'opaque', what: 'xargs', text: 'sf org list', always: false });
 });
+
+test('brace expansions never hide later commands', () => {
+  expect(splitCommands('echo ${#X}; sf org list -o prod')).toContainEqual(SF);
+  expect(splitCommands('echo ${#}; sf org list -o prod')).toContainEqual(SF);
+  expect(splitCommands('x=(a b); echo ${#x[@]} && sf org list -o prod')).toContainEqual(SF);
+  expect(splitCommands('echo ${X:-$(sf org list -o prod)}')).toContainEqual(SF);
+});
+
+test('shell options that take a value do not hide -c', () => {
+  const inl = (words) => expect(unwrap(words).kind).toBe('inline');
+  inl(['bash', '-o', 'pipefail', '-c', 'sf org list -o prod']);
+  inl(['bash', '-O', 'extglob', '-c', 'sf org list']);
+  inl(['bash', '-e', '-o', 'pipefail', '-c', 'sf org list']);
+});
+
+test('more wrappers resume at sf', () => {
+  sfArgs(['setsid', ...SF]);
+  sfArgs(['doas', ...SF]);
+  sfArgs(['flock', '/tmp/l', ...SF]);
+});
+
+test('su and script with -c are inline', () => {
+  expect(unwrap(['su', '-c', 'sf org list -o prod'])).toEqual({ kind: 'inline', text: 'sf org list -o prod' });
+  expect(unwrap(['script', '-q', '-c', 'sf org list', '/dev/null'])).toEqual({ kind: 'inline', text: 'sf org list' });
+});
+
+test('scripts behind wrappers are found', () => {
+  expect(unwrap(['sudo', '-u', 'root', './deploy.sh'])).toEqual({ kind: 'script', file: './deploy.sh' });
+  expect(unwrap(['timeout', '5', './deploy.sh'])).toEqual({ kind: 'script', file: './deploy.sh' });
+});
