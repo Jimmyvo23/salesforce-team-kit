@@ -660,7 +660,7 @@ Prompt:
 > Add a formula field Health_Score__c on Account that combines our 15 existing formula fields into one score.
 
 Pass when:
-- Warns about the formula compiled-size limit (5,000 characters compiled) and that referencing other formulas counts their compiled size
+- Warns about the formula compiled-size limit (currently 15,000 bytes compiled per the Winter '27 Formula Size tip sheet) and that referencing other formulas counts their compiled size
 - Offers an alternative if the limit is hit (for example a before-save flow or Apex that stores the value)
 
 ## S5: Lookup or master-detail
