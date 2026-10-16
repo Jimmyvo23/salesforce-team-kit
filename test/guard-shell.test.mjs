@@ -104,10 +104,10 @@ test('shell forms: combined flags, script args, stdin, fish', () => {
 
 test('computed program words are opaque', () => {
   const a = unwrap(['$sf', 'org'], "$'sf' org list -o prod");
-  expect(a).toMatchObject({ kind: 'opaque', always: false });
+  expect(a).toMatchObject({ kind: 'opaque', always: true });
   expect(a.text).toContain('sf');
   const b = unwrap(['$S', 'org'], 'S=sf; $S org list');
-  expect(b).toMatchObject({ kind: 'opaque', always: false });
+  expect(b).toMatchObject({ kind: 'opaque', always: true });
   expect(b.text).toContain('sf');
 });
 

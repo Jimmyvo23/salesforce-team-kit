@@ -125,8 +125,9 @@ describe('decide', () => {
 
   test('stdin shells and computed names are blocked', () => {
     blocked('echo "sf org list" | bash', /hides the command from the guard/);
-    blocked('S=sf; $S org list -o prod', /hides the sf command's arguments/);
-    allowed('$EDITOR notes.txt');
+    blocked('S=sf; $S org list -o prod', /hides the command from the guard/);
+    blocked('$EDITOR notes.txt', /hides the command from the guard/);
+    blocked('$SFBIN data query -o prod -q x', /hides the command from the guard/);
   });
 
   test('wrappers and keywords reach the sf check', () => {
