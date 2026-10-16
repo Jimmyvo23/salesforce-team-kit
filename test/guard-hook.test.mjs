@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { mentionsSf } from '../hooks/guard-org.mjs';
+import { mentionsSf, finish } from '../hooks/guard-org.mjs';
 
 const HOOK = fileURLToPath(new URL('../hooks/guard-org.mjs', import.meta.url));
 let root;
@@ -233,4 +233,11 @@ describe('final fix F-2: the hook resolves from the folder the command runs in',
       expect(r.stderr).toContain(`The guard can't read ${f} to check it for sf commands. Run the sf commands directly.`);
     }
   });
+});
+
+test('final fix F-3: a run that rejects exits 2', async () => {
+  /** @type {number[]} */ const codes = [];
+  await finish(Promise.reject(new Error('boom')), (c) => { codes.push(c); });
+  await finish(Promise.resolve(0), (c) => { codes.push(c); });
+  expect(codes).toEqual([2, 0]);
 });

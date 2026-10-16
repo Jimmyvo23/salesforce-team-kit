@@ -69,6 +69,23 @@ describe('install and uninstall', () => {
     expect(r.stderr).toMatch(/"prod" is not listed/);
   });
 
+  test('an installed guard that cannot load its files blocks sf commands and allows others', () => {
+    install();
+    fs.rmSync(path.join(target, '.team/bin/lib/guard.mjs'));
+    const hook = (command) => spawnSync(process.execPath, [path.join(target, '.team/bin/hooks/guard-org.mjs')], {
+      input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: target },
+    });
+    const r = hook('sf data query -o prod -q "SELECT Id FROM User"');
+    expect(r.status).toBe(2);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toMatch(/^Blocked by the org guard: The org guard could not load its files \(.+\), so sf commands are blocked\. Re-run the kit installer\.\n$/);
+    const ok = hook('git status');
+    expect(ok.status).toBe(0);
+    expect(ok.stderr).toBe('');
+  });
+
   test('uninstall removes the guard hook and the deny rule but keeps user rules', () => {
     fs.mkdirSync(path.join(target, '.claude'));
     fs.writeFileSync(path.join(target, '.claude', 'settings.json'), JSON.stringify({ permissions: { deny: ['Bash(rm -rf:*)'] } }));

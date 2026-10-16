@@ -5,16 +5,37 @@
 // exit 2, which Claude Code shows to the agent, plus a guard_blocked event for the office.
 // It looks up instance URLs with "sf org display --json"; that output holds an access token
 // and is never printed or stored, only the instance URL is kept.
+// Only Node built-ins are imported statically. The kit's own modules are loaded below inside a
+// try/catch: if one is missing or broken, a static import would crash the hook with exit 1,
+// which Claude Code treats as a non-blocking error, so the command would run unchecked.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { decide, readDefaultOrg, cachedInstanceUrl, findSfdxProject } from '../lib/guard.mjs';
-import { loadTeam } from '../lib/team.mjs';
-import { appendEvent } from '../lib/events.mjs';
-import { logPath } from '../lib/paths.mjs';
-import { describeBash } from './record.mjs';
+
+/** @param {unknown} e @returns {string} the first line of an error, kept short */
+const shortError = (e) => (e instanceof Error ? e.message : String(e)).split('\n')[0].slice(0, 200);
+
+/**
+ * @typedef {object} Kit
+ * @property {typeof import('../lib/guard.mjs')} guardLib
+ * @property {typeof import('../lib/team.mjs')} team
+ * @property {typeof import('../lib/events.mjs')} events
+ * @property {typeof import('../lib/paths.mjs')} paths
+ * @property {typeof import('./record.mjs')} record
+ */
+/** @type {Kit | null} */
+let kit = null;
+let loadError = '';
+try {
+  const [guardLib, team, events, paths, record] = await Promise.all([
+    import('../lib/guard.mjs'), import('../lib/team.mjs'), import('../lib/events.mjs'), import('../lib/paths.mjs'), import('./record.mjs'),
+  ]);
+  kit = { guardLib, team, events, paths, record };
+} catch (e) {
+  loadError = shortError(e);
+}
 
 const CACHE_FILE = path.join('.team', 'org-cache.json');
 
@@ -61,11 +82,13 @@ function lookupInstanceUrl(alias) {
  */
 export function guard(input, { projectDir, homeDir, now, env = process.env }) {
   if (!input || typeof input !== 'object' || input.tool_name !== 'Bash') return { allow: true };
+  if (!kit) throw new Error(`the guard's files did not load: ${loadError}`);
+  const { decide, readDefaultOrg, cachedInstanceUrl, findSfdxProject } = kit.guardLib;
   const command = typeof input.tool_input?.command === 'string' ? input.tool_input.command : '';
   // sf resolves the project config and relative paths from the folder the command runs in.
   const base = typeof input.cwd === 'string' && input.cwd ? path.resolve(projectDir, input.cwd) : projectDir;
   const sfdxRoot = findSfdxProject(base, (f) => fs.existsSync(f));
-  const loaded = loadTeam(path.join(projectDir, '.team', 'team.json'));
+  const loaded = kit.team.loadTeam(path.join(projectDir, '.team', 'team.json'));
   const cachePath = path.join(projectDir, CACHE_FILE);
   /** @type {Record<string, { url: string, at: string }>} */
   let cache = {};
@@ -127,6 +150,10 @@ async function run() {
     d = { allow: false, reason: 'The org guard could not read this command, so it is blocked.' };
   }
   command = String(input?.tool_input?.command ?? '');
+  if (!d && !kit) {
+    if (input?.tool_name !== 'Bash' || !mentionsSf(command)) return 0;
+    d = { allow: false, reason: `The org guard could not load its files (${loadError}), so sf commands are blocked. Re-run the kit installer.` };
+  }
   const cwd = typeof input?.cwd === 'string' ? input.cwd : '';
   const projectDir = process.env.CLAUDE_PROJECT_DIR || cwd || '';
   if (!d) {
@@ -145,10 +172,10 @@ async function run() {
   if (d.allow) return 0;
   process.stderr.write(`Blocked by the org guard: ${d.reason}\n`);
   try {
-    if (projectDir && fs.statSync(path.join(projectDir, '.team'), { throwIfNoEntry: false })?.isDirectory()) {
+    if (kit && projectDir && fs.statSync(path.join(projectDir, '.team'), { throwIfNoEntry: false })?.isDirectory()) {
       const type = typeof input?.agent_type === 'string' ? input.agent_type.trim().toLowerCase() : '';
-      appendEvent(logPath(projectDir), {
-        type: 'guard_blocked', agent: type || 'planner', command: describeBash(command) || 'a command', reason: d.reason, source: 'hook',
+      kit.events.appendEvent(kit.paths.logPath(projectDir), {
+        type: 'guard_blocked', agent: type || 'planner', command: kit.record.describeBash(command) || 'a command', reason: d.reason, source: 'hook',
       });
     }
   } catch {
@@ -169,6 +196,13 @@ function isMain() {
   }
 }
 
-if (isMain()) {
-  run().then((code) => process.exit(code), () => process.exit(2));
+/**
+ * Exit with the run's code; a run that rejects exits 2 (blocked), never 1.
+ * @param {Promise<number>} p
+ * @param {(code: number) => void} [exit]
+ */
+export function finish(p, exit = (code) => process.exit(code)) {
+  return p.then((code) => exit(code), () => exit(2));
 }
+
+if (isMain()) finish(run());
