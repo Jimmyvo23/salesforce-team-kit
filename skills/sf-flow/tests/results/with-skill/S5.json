@@ -1,0 +1,22 @@
+{
+  "id": "S5",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Explains flow versions: saving creates a new version and only one version is active",
+      "met": true,
+      "evidence": "Saving an active flow in Flow Builder creates a new, inactive version. Only one version is active at a time."
+    },
+    {
+      "item": "Tests the new version before activating (Flow test, debug run, or test records in the sandbox)",
+      "met": true,
+      "evidence": "3. Test the new version before activating. Run Flow tests... Debug it in rollback mode. Create or update a few real test Leads in `uat`."
+    },
+    {
+      "item": "Keeps the previous version available for rollback, and does not touch production",
+      "met": true,
+      "evidence": "the old version stays for rollback... Don't delete old versions yet. Production is a separate step. A person moves the flow there with a change set"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "S4",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Screen flow calling the invocable Apex action, with the inputs named",
+      "met": true,
+      "evidence": "Element 5 'Action (Apex) Log Visit: VisitService.logVisit'; assumed inputs siteId, visitDate, visitType, notes, followUpRequired, followUpDate"
+    },
+    {
+      "item": "A fault path from the Apex action to a screen that shows a friendly error",
+      "met": true,
+      "evidence": "Element 5: 'Fault connector goes to element 8 for thrown exceptions.' Element 8 screen: 'We couldn't save the visit. Your entries are kept. Try again or contact your admin.'"
+    },
+    {
+      "item": "Mentions which user context the flow runs in, and permission to the Apex class or the flow",
+      "met": true,
+      "evidence": "'The flow runs in user context' and permission set with 'Run Flows', 'Apex Class Access to VisitService'"
+    }
+  ]
+}

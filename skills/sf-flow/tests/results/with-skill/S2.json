@@ -1,0 +1,27 @@
+{
+  "id": "S2",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "No Update Records (DML) or Get Records inside a Loop; builds a collection and updates it once, or uses Update Records with related-record criteria",
+      "met": true,
+      "evidence": "\"There is no Loop and no Get Records.\" Update Records with filter `AccountId` Equals `{!$Record.Id}`"
+    },
+    {
+      "item": "Entry condition only when an address field changes",
+      "met": true,
+      "evidence": "OR(ISCHANGED({!$Record.BillingStreet}), ISCHANGED(...BillingCity) ...) \"fires only when an address field actually changes\""
+    },
+    {
+      "item": "Fault path on the update",
+      "met": true,
+      "evidence": "\"**Fault connector** goes to element 3.\" (Send Email admin on failure)"
+    },
+    {
+      "item": "Mentions bulk behaviour (200 Accounts saved at once, many Contacts per Account)",
+      "met": true,
+      "evidence": "\"saves up to **200 Accounts per transaction**... 200 Accounts with 60 Contacts each is 12,000 Contact rows, which **fails**\""
+    }
+  ]
+}

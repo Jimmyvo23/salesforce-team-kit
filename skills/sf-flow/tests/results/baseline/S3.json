@@ -1,0 +1,22 @@
+{
+  "id": "S3",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Uses a record-triggered flow, mentioning the Migrate to Flow tool or rebuilding its criteria and actions",
+      "met": false,
+      "evidence": "\"I'd then read the criteria and actions and build the equivalent record-triggered flow.\" This is only a conditional plan. The answer builds no flow and doesn't mention the Migrate to Flow tool."
+    },
+    {
+      "item": "Says to deactivate the Process Builder when the flow is activated, so both don't run, and to test in the sandbox first",
+      "met": false,
+      "evidence": "\"the old process should be deactivated there at the same time the flow goes live. Otherwise both would run.\" It also says \"I'll deploy to `uat` only\". It never clearly tells the user to test in the sandbox first."
+    },
+    {
+      "item": "Checks for other automation on Opportunity that overlaps",
+      "met": false,
+      "evidence": "not found"
+    }
+  ]
+}

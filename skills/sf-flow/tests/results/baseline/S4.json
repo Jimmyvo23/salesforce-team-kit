@@ -1,0 +1,22 @@
+{
+  "id": "S4",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Screen flow calling the invocable Apex action, with the inputs named",
+      "met": true,
+      "evidence": "Action element calls `VisitService.logVisit`; assumed inputs: `accountId`, `visitDate`, `visitType`, `contactIds` (list), `notes`, `nextStep`, `nextStepDate`."
+    },
+    {
+      "item": "A fault path from the Apex action to a screen that shows a friendly error",
+      "met": true,
+      "evidence": "\"Its fault connector goes to the error screen and shows `{!$Flow.FaultMessage}`. It never ends silently.\" and Result screen: \"an error message with a Back button.\""
+    },
+    {
+      "item": "Mentions which user context the flow runs in, and permission to the Apex class or the flow",
+      "met": false,
+      "evidence": "It mentions \"Add the flow to the reps' permission set and give them access to the Apex class,\" but never states the flow's run context (user context vs. system context)."
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "S2",
+  "mode": "baseline",
+  "pass": true,
+  "items": [
+    {
+      "item": "No Update Records (DML) or Get Records inside a Loop; builds a collection and updates it once, or uses Update Records with related-record criteria",
+      "met": true,
+      "evidence": "Option A: Update Records on Contact with Filter `AccountId` Equals `{!$Record.Id}`; Option B: \"Update Records after the loop... Keep this outside the loop\""
+    },
+    {
+      "item": "Entry condition only when an address field changes",
+      "met": true,
+      "evidence": "Entry conditions (OR): any of BillingStreet/City/State/PostalCode/Country changed; \"the flow only starts when the address changed, not on every account edit\""
+    },
+    {
+      "item": "Fault path on the update",
+      "met": true,
+      "evidence": "Add a **Fault path** from the Update Records element."
+    },
+    {
+      "item": "Mentions bulk behaviour (200 Accounts saved at once, many Contacts per Account)",
+      "met": true,
+      "evidence": "\"Salesforce runs this as one bulk DML statement, so it is bulk-safe\"; \"Accounts with more than 10,000 contacts hit the DML row limit\"; \"Test with... about 200 contacts\""
+    }
+  ]
+}

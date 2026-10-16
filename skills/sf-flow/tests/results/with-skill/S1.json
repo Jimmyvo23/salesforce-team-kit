@@ -1,0 +1,27 @@
+{
+  "id": "S1",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Record-triggered after-save flow on Case",
+      "met": true,
+      "evidence": "**Record-triggered, after-save (Actions and Related Records).** The flow creates a record on another object (Task)"
+    },
+    {
+      "item": "Entry condition only fires when Case changes to closed",
+      "met": true,
+      "evidence": "`IsClosed` Equals `true`... \"Only when a record is updated to meet the condition requirements\". It fires once when the Case becomes closed, not on later edits."
+    },
+    {
+      "item": "Create Records element has a fault path",
+      "met": true,
+      "evidence": "**Fault connector:** goes to element 5. / Send Email `Notify Admin of Task Failure`"
+    },
+    {
+      "item": "Says to check existing automation on Case first",
+      "met": true,
+      "evidence": "## 1. Existing automation on Case (check first)"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "S5",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Explains flow versions: saving creates a new version and only one version is active",
+      "met": false,
+      "evidence": "Only says \"choosing which version to make active\"; never explains that saving creates a new version or that only one version is active."
+    },
+    {
+      "item": "Tests the new version before activating (Flow test, debug run, or test records in the sandbox)",
+      "met": false,
+      "evidence": "not found"
+    },
+    {
+      "item": "Keeps the previous version available for rollback, and does not touch production",
+      "met": false,
+      "evidence": "Nothing on rollback or keeping the previous version. It does not touch production, but that is only part of the item."
+    }
+  ]
+}
