@@ -24,6 +24,7 @@ const KIT_FILES = [
   '.team/bin/lib/paths.mjs',
   '.team/bin/lib/team.mjs',
   '.team/bin/team-status.mjs',
+  '.team/changeset-template.md',
   '.team/handoffs/handoff-template.md',
   '.team/planner.md',
   '.team/work-order-template.md',
