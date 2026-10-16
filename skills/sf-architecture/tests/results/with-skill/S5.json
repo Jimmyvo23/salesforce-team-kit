@@ -1,0 +1,22 @@
+{
+  "id": "S5",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Compares lookup and master-detail on sharing, ownership, cascade delete and roll-up summaries",
+      "met": true,
+      "evidence": "Table rows: Sharing (inherit vs own), Ownership (no owner vs has an owner), Cascade delete (Always vs Optional), Roll-ups (native vs none natively)"
+    },
+    {
+      "item": "Raises data skew (more than about 10,000 child records under one parent) and its locking and sharing-recalculation effects",
+      "met": true,
+      "evidence": "\"well past the roughly 10,000-children-per-parent skew threshold\"; \"Row locking... UNABLE_TO_LOCK_ROW\"; \"Sharing recalculation. Changing an Account's owner or sharing recalculates access for every master-detail child\""
+    },
+    {
+      "item": "Gives a recommendation with the reason",
+      "met": true,
+      "evidence": "\"Recommendation: Lookup\"; \"I'm rejecting master-detail for those reasons\" (locking, sharing recalculation, roll-up cost)"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "S4",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Warns about the formula compiled-size limit and that referencing other formulas counts their compiled size",
+      "met": true,
+      "evidence": "\"The compiled size of a formula includes the compiled size of every formula field it references. Fifteen formula inputs means fifteen compiled sizes stacked up, so this will probably hit the limit.\" It cites 15,000 bytes and notes older docs say 5,000, so the figure differs from the 5,000 in the criterion, but the warning is clear."
+    },
+    {
+      "item": "Offers an alternative if the limit is hit",
+      "met": true,
+      "evidence": "\"Make `Health_Score__c` a stored Number field. Calculate it in a before-save record-triggered flow on Account.\" It also offers Apex or a batch job."
+    }
+  ]
+}

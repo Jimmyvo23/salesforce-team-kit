@@ -1,0 +1,22 @@
+{
+  "id": "S3",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "No synchronous callout in trigger/before-save; uses async pattern",
+      "met": true,
+      "evidence": "\"A callout can't happen in the save transaction or in a before-save flow.\" Recommends an after-save flow or trigger handler that enqueues an Apex Queueable, which makes the callout."
+    },
+    {
+      "item": "Uses Named Credential and External Credential, no hard-coded URL or secret",
+      "met": true,
+      "evidence": "\"Create a Named Credential `ERP_Orders` pointing at `https://erp.example.com`, with an External Credential for authentication... Apex calls `callout:ERP_Orders/api/orders`. The URL and secrets are never hard-coded\""
+    },
+    {
+      "item": "Covers failure handling: retries, logging or error record",
+      "met": true,
+      "evidence": "\"Timeouts and 5xx: capped retries (for example 3) with backoff, by re-enqueueing...\"; fields `ERP_Sync_Status__c`, `ERP_Last_Error__c`, `ERP_Attempts__c`; a log object `ERP_Sync_Log__c`; a sweep job."
+    }
+  ]
+}

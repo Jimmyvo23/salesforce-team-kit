@@ -1,0 +1,27 @@
+{
+  "id": "S1",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Runs or asks for an automation inventory of the existing flows, triggers, workflow rules and process builders on Opportunity and Account before choosing an approach",
+      "met": true,
+      "evidence": "Section 2 \"Automation inventory (run first, against `uat`)\" with queries for flows, Process Builder, Apex triggers and workflow rules on Opportunity and Account. The recommendation is marked provisional pending the results."
+    },
+    {
+      "item": "Chooses an after-save record-triggered flow (or Apex), not a before-save flow, because it updates a different record",
+      "met": true,
+      "evidence": "\"One after-save record-triggered flow on Opportunity... Why after-save: the change writes to a different record (Account). A before-save flow can only change `$Record`\""
+    },
+    {
+      "item": "Limits the entry condition to the change to Closed Won (for example ISCHANGED or \"only when a record is updated to meet the condition\")",
+      "met": true,
+      "evidence": "\"run 'only when a record is updated to meet the condition requirements' with `IsWon = true`... Closed Won must be newly met, so later edits to a won deal don't re-run the flow.\""
+    },
+    {
+      "item": "Mentions bulk behaviour (many Opportunities saved at once) or recursion and order of execution",
+      "met": true,
+      "evidence": "\"Bulk: ... 200 Opportunities on 50 Accounts means one query and one update\"; also \"Order of execution\" and \"Recursion: nothing loops.\""
+    }
+  ]
+}

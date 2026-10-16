@@ -1,0 +1,27 @@
+{
+  "id": "S1",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Runs or asks for an automation inventory of the existing flows, triggers, workflow rules and process builders on Opportunity and Account before choosing an approach",
+      "met": false,
+      "evidence": "The conflict check is step 3, after the approach is chosen: \"Check for conflicts. Look in `uat` for existing Account or Opportunity automation...\". The repo claim \"There are no triggers or flows on Opportunity\" is not an org inventory, and the answer says \"I haven't queried `uat`\"."
+    },
+    {
+      "item": "Chooses an after-save record-triggered flow (or Apex), not a before-save flow, because it updates a different record",
+      "met": false,
+      "evidence": "It chooses \"record-triggered Flow (after save)\", but never says that this is because it updates a different record (Account), and never contrasts it with before-save."
+    },
+    {
+      "item": "Limits the entry condition to the change to Closed Won (for example ISCHANGED or \"only when a record is updated to meet the condition\")",
+      "met": true,
+      "evidence": "\"Run only when the record is created or updated to meet the condition. This fires only on the transition into Won, not on every later edit.\""
+    },
+    {
+      "item": "Mentions bulk behaviour (many Opportunities saved at once) or recursion and order of execution",
+      "met": true,
+      "evidence": "\"Multiple wins in one transaction | Flow bulkifies this.\" and \"Bulk: update about 200 Opportunities across about 50 Accounts\""
+    }
+  ]
+}

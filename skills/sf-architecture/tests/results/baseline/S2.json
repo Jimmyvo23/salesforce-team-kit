@@ -1,0 +1,22 @@
+{
+  "id": "S2",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Recommends a before-save record-triggered flow (or formula field) and says why it beats after-save or Apex",
+      "met": true,
+      "evidence": "\"They're the fastest option because they need no extra DML. They're admin-maintainable and need no test class... Apex would mean introducing that scaffolding for one line of logic.\""
+    },
+    {
+      "item": "Notes that a before-save flow cannot create or update other records",
+      "met": false,
+      "evidence": "not found"
+    },
+    {
+      "item": "Says to check existing automation on Opportunity first",
+      "met": false,
+      "evidence": "not found (only notes the repo has no triggers or flows, and does not tell the user to check existing automation)"
+    }
+  ]
+}

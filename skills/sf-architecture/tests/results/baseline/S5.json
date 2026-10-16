@@ -1,0 +1,22 @@
+{
+  "id": "S5",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Compares lookup and master-detail on sharing, ownership, cascade delete and roll-up summaries",
+      "met": true,
+      "evidence": "\"Roll-up summary fields are the main benefit of master-detail\"; \"Cascade delete: ... Master-detail forces that cascade\"; \"Ownership and sharing: Invoices would inherit the Account's sharing and have no owner of their own.\" Lookup side is covered in the setup section: required lookup with \"Don't allow deletion\", and DLRS/Flow for roll-ups."
+    },
+    {
+      "item": "Raises data skew (more than about 10,000 child records under one parent) and its locking and sharing-recalculation effects",
+      "met": false,
+      "evidence": "Covers skew and locking: \"avoid more than ~10k children per parent\"; \"locks the parent Account\"; \"UNABLE_TO_LOCK_ROW\". Sharing recalculation effects of skew are not found."
+    },
+    {
+      "item": "Gives a recommendation with the reason",
+      "met": true,
+      "evidence": "\"Recommendation: Lookup\" with reasons given under \"Why master-detail is risky at your volumes\""
+    }
+  ]
+}

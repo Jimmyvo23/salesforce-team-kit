@@ -1,0 +1,22 @@
+{
+  "id": "S2",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Recommends a before-save record-triggered flow (or formula field) and says why it beats after-save or Apex",
+      "met": true,
+      "evidence": "\"a before-save flow is the right tool. It needs no extra DML and no second save.\" and \"An after-save flow would re-run the whole save order on the same record. Apex would add code and tests for no gain.\""
+    },
+    {
+      "item": "Notes that a before-save flow cannot create or update other records",
+      "met": true,
+      "evidence": "\"Before-save flows can't touch other records. That doesn't matter here, because nothing else is written.\""
+    },
+    {
+      "item": "Says to check existing automation on Opportunity first",
+      "met": true,
+      "evidence": "\"Automation inventory (not run yet)... Please run these against `uat` and send me the results\""
+    }
+  ]
+}
