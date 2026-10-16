@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { loadTeam } from '../lib/team.mjs';
 import { buildState, foldEvents } from '../lib/state.mjs';
 
-const loaded = loadTeam(fileURLToPath(new URL('../templates/team.json', import.meta.url)));
+const loaded = loadTeam(fileURLToPath(new URL('./fixtures/team-web.json', import.meta.url)));
 const team = loaded.team;
 const T0 = Date.parse('2026-10-05T12:00:00Z');
 let tick = 0;

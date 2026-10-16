@@ -1,0 +1,12 @@
+{
+  "project": "CookNeighbour",
+  "staleAfterMinutes": 5,
+  "approver": { "id": "jimmy", "name": "Jimmy", "role": "Product owner. Approves every Work Order", "color": "#ffe08a" },
+  "members": [
+    { "id": "planner",  "name": "Planner",  "role": "Plans the work and hands it out", "color": "#b9a7ff" },
+    { "id": "backend",  "name": "Backend",  "role": "Database, APIs and business rules", "color": "#9ee0bf" },
+    { "id": "frontend", "name": "Frontend", "role": "Pages and screens", "color": "#ffc49a" },
+    { "id": "tester",   "name": "Tester",   "role": "Writes tests and reports bugs", "color": "#a9d2ff" },
+    { "id": "reviewer", "name": "Reviewer", "role": "Final check before anything ships", "color": "#ffb3c9" }
+  ]
+}

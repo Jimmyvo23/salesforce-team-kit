@@ -18,7 +18,7 @@ const team = (over = {}) => ({ project: 'P', approver: m('jimmy'), members: [m('
 
 test('loads the template', () => {
   const r = loadTeam(template);
-  expect(r.ok && r.team.members.map((x) => x.id)).toEqual(['planner', 'backend', 'frontend', 'tester', 'reviewer']);
+  expect(r.ok && r.team.members.map((x) => x.id)).toEqual(['planner', 'analyst', 'admin', 'developer', 'qa', 'reviewer']);
   expect(r.ok && r.team.approver.id).toBe('jimmy');
 });
 test('missing file', () => expect(loadTeam('/nope.json')).toEqual({ ok: false, error: expect.stringContaining('not found') }));

@@ -125,7 +125,7 @@ describe('install', () => {
 
     const team = JSON.parse(read('.team/team.json'));
     expect(team.project).toBe('my project');
-    expect(team.members.map((m) => m.id)).toEqual(['planner', 'backend', 'frontend', 'tester', 'reviewer']);
+    expect(team.members.map((m) => m.id)).toEqual(['planner', 'analyst', 'admin', 'developer', 'qa', 'reviewer']);
 
     const manifest = JSON.parse(read('.team/kit-manifest.json'));
     expect(manifest.version).toBe(JSON.parse(fs.readFileSync(path.join(KIT, 'package.json'), 'utf8')).version);
@@ -325,12 +325,12 @@ describe('installed scripts', () => {
 
   test('installed team-status runs from the target and appends an event', async () => {
     await install();
-    const r = spawnSync(process.execPath, ['.team/bin/team-status.mjs', 'status', '--agent', 'backend', '--status', 'working'], {
+    const r = spawnSync(process.execPath, ['.team/bin/team-status.mjs', 'status', '--agent', 'developer', '--status', 'working'], {
       cwd: target, env: cleanEnv(), encoding: 'utf8',
     });
     expect(r.stderr).toBe('');
     expect(r.status).toBe(0);
-    expect(lastEvent()).toMatchObject({ type: 'status', agent: 'backend', status: 'working', source: 'cli' });
+    expect(lastEvent()).toMatchObject({ type: 'status', agent: 'developer', status: 'working', source: 'cli' });
   });
 
   test('installed team-status warns about an id not in team.json and still writes', async () => {
