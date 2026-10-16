@@ -83,7 +83,7 @@ function lookupInstanceUrl(alias) {
 export function guard(input, { projectDir, homeDir, now, env = process.env }) {
   if (!input || typeof input !== 'object' || input.tool_name !== 'Bash') return { allow: true };
   if (!kit) throw new Error(`the guard's files did not load: ${loadError}`);
-  const { decide, resolveDefaultOrg, cachedInstanceUrl, findSfdxProject } = kit.guardLib;
+  const { decide, resolveDefaultOrg, cachedInstanceUrl, findSfdxProject, aliasUsername } = kit.guardLib;
   const command = typeof input.tool_input?.command === 'string' ? input.tool_input.command : '';
   // sf resolves the project config and relative paths from the folder the command runs in.
   const base = typeof input.cwd === 'string' && input.cwd ? path.resolve(projectDir, input.cwd) : projectDir;
@@ -94,7 +94,7 @@ export function guard(input, { projectDir, homeDir, now, env = process.env }) {
   const conflict = org.conflict ?? hub.conflict;
   const loaded = kit.team.loadTeam(path.join(projectDir, '.team', 'team.json'));
   const cachePath = path.join(projectDir, CACHE_FILE);
-  /** @type {Record<string, { url: string, at: string }>} */
+  /** @type {import('../lib/guard.mjs').UrlCache} */
   let cache = {};
   try {
     const c = JSON.parse(readOrNull(cachePath) ?? '{}');
@@ -111,7 +111,8 @@ export function guard(input, { projectDir, homeDir, now, env = process.env }) {
       : conflict === 'env' ? 'SF_ and SFDX_ variables name different default orgs. Pass -o <sandbox alias>.'
         : conflict === 'config' ? 'The new and legacy sf config name different default orgs. Pass -o <sandbox alias>.' : null,
     instanceUrl: (alias) => {
-      const r = cachedInstanceUrl(alias, { cache, now, lookup: lookupInstanceUrl });
+      const username = aliasUsername(alias, { homeDir, readFile: readOrNull });
+      const r = cachedInstanceUrl(alias, { cache, now, lookup: lookupInstanceUrl, username });
       if (r.cache !== cache) {
         cache = r.cache;
         try {

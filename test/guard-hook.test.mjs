@@ -17,8 +17,11 @@ const args = process.argv.slice(2);
 const alias = args[args.indexOf('-o') + 1];
 const urls = { uat: 'https://acme--uat.sandbox.my.salesforce.com', sneaky: 'https://acme.my.salesforce.com' };
 require('node:fs').appendFileSync(process.env.FAKE_SF_LOG, alias + '\\n');
-if (!urls[alias]) process.exit(1);
-process.stdout.write(JSON.stringify({ status: 0, result: { instanceUrl: urls[alias], accessToken: 'SECRET-TOKEN' } }));
+let user = alias;
+try { user = JSON.parse(require('node:fs').readFileSync(require('node:path').join(process.env.HOME, '.sfdx', 'alias.json'), 'utf8')).orgs[alias] ?? alias; } catch {}
+const url = user.endsWith('@prod.com') ? urls.sneaky : urls[alias];
+if (!url) process.exit(1);
+process.stdout.write(JSON.stringify({ status: 0, result: { instanceUrl: url, accessToken: 'SECRET-TOKEN' } }));
 `;
 
 beforeEach(() => {
@@ -79,6 +82,8 @@ test('blocks a listed alias that is really production; the token never leaks', (
 });
 
 test('caches the instance URL between calls', () => {
+  fs.mkdirSync(path.join(home, '.sfdx'));
+  fs.writeFileSync(path.join(home, '.sfdx', 'alias.json'), '{"orgs":{"uat":"u@sb.com"}}');
   runHook(bash('sf data query -o uat -q x'));
   runHook(bash('sf data query -o uat -q y'));
   expect(fs.readFileSync(path.join(root, 'sf.log'), 'utf8').trim().split('\n')).toEqual(['uat']);
@@ -279,4 +284,31 @@ test('round 3 H-5: the crash fallback spots obfuscated sf lines', async () => {
     expect(await looksLikeSf(t), t).toBe(true);
   }
   for (const t of ['git status', 'echo salesforce']) expect(await looksLikeSf(t), t).toBe(false);
+});
+
+test('round 4 J-4: a legacy key in the project .sf file does not hide the home default', () => {
+  fs.writeFileSync(path.join(project, 'sfdx-project.json'), '{}');
+  fs.mkdirSync(path.join(project, '.sf'));
+  fs.writeFileSync(path.join(project, '.sf', 'config.json'), '{"defaultusername":"uat"}');
+  fs.mkdirSync(path.join(home, '.sf'));
+  fs.writeFileSync(path.join(home, '.sf', 'config.json'), '{"target-org":"prod"}');
+  const r = runHook(bash('sf data query -q x'));
+  expect(r.status).toBe(2);
+  expect(r.stderr).toMatch(/new and legacy sf config/);
+});
+
+test('round 4 J-5: remapping an alias to another username is looked up again', () => {
+  const aliases = (user) => {
+    fs.mkdirSync(path.join(home, '.sfdx'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.sfdx', 'alias.json'), JSON.stringify({ orgs: { uat: user } }));
+  };
+  aliases('u@sb.com');
+  expect(runHook(bash('sf data query -o uat -q x')).status).toBe(0);
+  expect(runHook(bash('sf data query -o uat -q y')).status).toBe(0);
+  expect(fs.readFileSync(path.join(root, 'sf.log'), 'utf8').trim().split('\n')).toEqual(['uat']);
+  aliases('someone@prod.com');
+  const r = runHook(bash('sf data query -o uat -q z'));
+  expect(r.status).toBe(2);
+  expect(r.stderr).toMatch(/acme\.my\.salesforce\.com, which is not a sandbox/);
+  expect(`${r.stdout}${r.stderr}${everything()}`).not.toContain('SECRET-TOKEN');
 });

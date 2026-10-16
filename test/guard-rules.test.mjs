@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { decide, checkSf, isSandboxUrl, readDefaultOrg, resolveDefaultOrg, cachedInstanceUrl, CACHE_TTL_MS, findSfdxProject } from '../lib/guard.mjs';
+import { decide, checkSf, isSandboxUrl, readDefaultOrg, resolveDefaultOrg, cachedInstanceUrl, CACHE_TTL_MS, findSfdxProject, aliasUsername } from '../lib/guard.mjs';
 
 const URLS = {
   uat: 'https://acme--uat.sandbox.my.salesforce.com',
@@ -170,8 +170,8 @@ describe('readDefaultOrg', () => {
 describe('cachedInstanceUrl', () => {
   const now = new Date('2026-10-15T12:00:00Z');
   test('uses a fresh cache entry without looking up', () => {
-    const cache = { uat: { url: URLS.uat, at: new Date(now.getTime() - 1000).toISOString() } };
-    const r = cachedInstanceUrl('uat', { cache, now, lookup: () => { throw new Error('should not look up'); } });
+    const cache = { uat: { url: URLS.uat, at: new Date(now.getTime() - 1000).toISOString(), username: 'u@sb.com' } };
+    const r = cachedInstanceUrl('uat', { cache, now, username: 'u@sb.com', lookup: () => { throw new Error('should not look up'); } });
     expect(r).toEqual({ url: URLS.uat, cache });
   });
   test('looks up when missing or older than a day, and returns a new cache', () => {
@@ -509,7 +509,7 @@ describe('round 3 H-4: both key names in both files', () => {
   test('a new-style key in the legacy file counts', () => {
     expect(r({ '/p/.sfdx/sfdx-config.json': '{"target-org":"prod"}', '/h/.sf/config.json': '{"target-org":"uat"}' })).toEqual({ org: 'prod', conflict: null });
     expect(r({ '/p/.sf/config.json': '{"target-org":"uat"}', '/p/.sfdx/sfdx-config.json': '{"target-org":"prod"}' })).toEqual({ org: null, conflict: 'config' });
-    expect(r({ '/p/.sf/config.json': '{"defaultusername":"prod"}' })).toEqual({ org: 'prod', conflict: null });
+    expect(r({ '/p/.sf/config.json': '{"defaultusername":"prod"}' })).toEqual({ org: null, conflict: 'config' }); // round 4 J-4
     expect(r({ '/p/.sfdx/sfdx-config.json': '{"target-dev-hub":"hub"}' }, { hub: true })).toEqual({ org: 'hub', conflict: null });
     expect(r({ '/p/.sf/config.json': '{"target-org":"uat","defaultusername":"prod"}' })).toEqual({ org: null, conflict: 'config' });
   });
@@ -517,5 +517,170 @@ describe('round 3 H-4: both key names in both files', () => {
     expect(r({}, { env: { SF_DEFAULTUSERNAME: 'prod' } })).toEqual({ org: 'prod', conflict: null });
     expect(r({}, { env: { SF_TARGET_ORG: 'uat', SF_DEFAULTUSERNAME: 'prod' } })).toEqual({ org: null, conflict: 'env' });
     expect(r({}, { env: { SF_DEFAULTDEVHUBUSERNAME: 'hub' }, hub: true })).toEqual({ org: 'hub', conflict: null });
+  });
+});
+
+describe('round 4 J-1: sf command words in any order', () => {
+  test('forbidden commands are blocked in every word order', () => {
+    for (const [c, msg] of [
+      ['sf set alias uat=someone@prod.com', /aliases/], ['sf unset alias uat', /aliases/],
+      ['sf display org -o uat', /access token/], ['sf display:org -o uat', /access token/],
+      ['sf deploy project quick -i 0Af -o uat', /Jimmy deploys to production himself/],
+      ['sf quick deploy project pipeline -c uat -i 0Af', /Jimmy deploys to production himself/],
+      ['sf quick metadata deploy -i 0Af -o uat', /Jimmy deploys to production himself/],
+      ['sf open org -o uat -r', /login URL/], ['sf list org --json', /--json/], ['sf web login org', /authorises/],
+      ['sf set config target-org prod', /Changing the default org/], ['sf unset config target-org', /Changing the default org/],
+      ['sf org force:display -o uat', /access token/],
+    ]) blocked(c, msg);
+  });
+  test('an incomplete command that sf would offer to finish counts as the forbidden one', () => {
+    for (const [c, msg] of [['sf display -o uat', /access token/], ['sf alias x=prod', /aliases/], ['sf config target-org=prod', /Changing the default org/],
+      ['sf quick -i 0Af -o uat', /Jimmy deploys/]]) blocked(c, msg);
+  });
+  test('more commands that print tokens or login URLs are blocked', () => {
+    for (const c of ['sf org auth show-access-token -o uat', 'sf show-access-token auth org -o uat', 'sf org auth show-sfdx-auth-url -o uat',
+      'sf user display -o uat', 'sf force:user:display -o uat', 'sf org display user -o uat']) blocked(c, /token|login URL/);
+    blocked('sf force:source:open -o uat -r', /login URL/);
+    blocked('sf source open -o uat --url-only', /login URL/);
+  });
+  test('per-command org flags and the snapshot Dev Hub apply in every word order', () => {
+    blocked('sf pipeline deploy project start -c prod -p P -b main', /"prod" is not listed/);
+    blocked('sf start pipeline deploy project -cprod -p P -b main', /"prod" is not listed/);
+    blocked('sf install bundle package -b x -o uat -d prod', /"prod" is not listed/);
+    blocked('sf generate template agent -s prod --agent-file x', /"prod" is not listed/);
+    blocked('sf create snapshot org -o uat -n x', /default Dev Hub "prod-hub"/, ctx({ defaultDevHub: () => 'prod-hub' }));
+  });
+  test('org-free commands pass in any word order', () => {
+    const c = ctx({ defaultOrg: () => null });
+    for (const s of ['sf list org', 'sf list alias', 'sf alias list', 'sf org list', 'sf get config target-org', 'sf generate manifest project --source-dir force-app',
+      'sf generate class apex --name Foo', 'sf help org display']) allowed(s, c);
+    allowed('sf query data -o uat -q x');
+    allowed('sf deploy start project -c -o uat');
+  });
+  test('org-free rules match the whole command, so org commands that share their words use the default org', () => {
+    const c = ctx({ defaultOrg: () => 'nitro-prod' });
+    for (const s of ['sf org list metadata -m ApexClass', 'sf list metadata org -m ApexClass', 'sf update data record -s Account -i 001 --values "Name=x"',
+      'sf data update record -s Account -i 001 --values "Name=x"', 'sf version package list', 'sf search data -q x', 'sf org create user config',
+      'sf api request rest help']) blocked(s, /"nitro-prod" is not listed/, c);
+  });
+});
+
+describe('round 4 J-2: shell patterns in words', () => {
+  test('a pattern in the command name is opaque', () => {
+    for (const c of ['/usr/local/bin/s[f] data query -q x -o prod', '/usr/local/bin/s? data query -q x -o prod', '/usr/local/bin/s* data query -o prod',
+      '/usr/local/bin/{sf,x} data query -o prod', '{sf,data,query} -q x -o prod', '/usr/local/bin/s(f) data query -o prod',
+      '/usr/local/bin/@(sf) data query -o prod', 'env /usr/local/bin/s? data query -o prod', '=sf data query -q x -o prod']) {
+      blocked(c, /hides the command from the guard/);
+    }
+  });
+  test('a pattern that could expand to sf counts for the backstop', () => {
+    for (const c of ['arch /usr/local/bin/s? data query -o prod', 'arch /usr/local/bin/s[f] data query -o prod', 'arch {s,x}f data query -o prod',
+      'arch /usr/local/bin/s{f,x} data query -o prod', 'arch /usr/local/bin/s(f) data query -o prod', 'arch =sf data query -o prod',
+      'screen -dm ./bin/sf* data query -o prod', 'arch s{f..g} data query -o prod']) blocked(c, /could not find every sf command/);
+  });
+  test('test brackets, quoted patterns and patterns that cannot be sf pass', () => {
+    for (const c of ['[ -f x ] && echo y', '[[ -f x ]] && echo y', "find . -name '*'", 'ls test/*.test.mjs', 'echo "s?"', 'echo s\\?',
+      'ls src/{a,b}.ts', 'find . -exec echo {} \\;', 'f() { echo hi; }; f', 'git log --format=%h -n 1']) allowed(c);
+  });
+});
+
+describe('round 4 J-3: ANSI-C and locale quoting', () => {
+  test("$'…' is decoded the way bash does", () => {
+    for (const c of ["arch $'s\\x66' data query -q x -o prod", "screen -dm $'s\\x66' data query -q x -o prod", "arch $'\\163f' data query -o prod",
+      "arch $'s\\u0066' data query -o prod", "arch $'s\\U00000066' data query -o prod", "arch $'s\\146' data query -o prod"]) {
+      blocked(c, /could not find every sf command/);
+    }
+    blocked("$'s\\x66' data query -q x -o prod", /"prod" is not listed/);
+    blocked("sf data query -q x -o $'pr\\x6fd'", /"prod" is not listed/);
+    blocked('sf data query -q x -o $"prod"', /"prod" is not listed/);
+    allowed("echo $'a\\tb'");
+    allowed("sf data query -o $'u\\x61t' -q x");
+  });
+  test("a $'…' the guard can't decode is blocked", () => {
+    for (const c of ["arch $'s\\x66 data query -o prod", "echo $'a\\0b'", "echo $'\\c'"]) blocked(c, /can't read/);
+  });
+});
+
+describe('round 4 J-4: legacy keys only count in the legacy file', () => {
+  const files = (map) => (f) => map[f] ?? null;
+  const r = (map, o = {}) => resolveDefaultOrg({ projectDir: '/p', homeDir: '/h', readFile: files(map), ...o });
+  test('a legacy key in .sf/config.json is never trusted', () => {
+    expect(r({ '/p/.sf/config.json': '{"defaultusername":"uat"}', '/h/.sf/config.json': '{"target-org":"prod"}' })).toEqual({ org: null, conflict: 'config' });
+    expect(r({ '/p/.sf/config.json': '{"target-org":"uat","defaultusername":"uat"}' })).toEqual({ org: null, conflict: 'config' });
+    expect(r({ '/h/.sf/config.json': '{"defaultdevhubusername":"hub"}' }, { hub: true })).toEqual({ org: null, conflict: 'config' });
+  });
+  test('both names still count in .sfdx/sfdx-config.json', () => {
+    expect(r({ '/p/.sfdx/sfdx-config.json': '{"defaultusername":"dev"}' })).toEqual({ org: 'dev', conflict: null });
+    expect(r({ '/p/.sfdx/sfdx-config.json': '{"target-org":"dev"}' })).toEqual({ org: 'dev', conflict: null });
+  });
+});
+
+describe('round 4 J-5: the cache is keyed by the alias and its username', () => {
+  const now = new Date('2026-10-15T12:00:00Z');
+  const fresh = new Date(now.getTime() - 1000).toISOString();
+  test('a fresh entry for the same username is used', () => {
+    const cache = { uat: { url: URLS.uat, at: fresh, username: 'u@sb.com' } };
+    expect(cachedInstanceUrl('uat', { cache, now, username: 'u@sb.com', lookup: () => { throw new Error('should not look up'); } })).toEqual({ url: URLS.uat, cache });
+  });
+  test('a different or unknown username looks up again and stores the new username', () => {
+    const cache = { uat: { url: URLS.uat, at: fresh, username: 'u@sb.com' } };
+    const r = cachedInstanceUrl('uat', { cache, now, username: 'someone@prod.com', lookup: () => URLS.sneaky });
+    expect(r.url).toBe(URLS.sneaky);
+    expect(r.cache.uat).toEqual({ url: URLS.sneaky, at: now.toISOString(), username: 'someone@prod.com' });
+    expect(cachedInstanceUrl('uat', { cache, now, username: null, lookup: () => URLS.sneaky }).url).toBe(URLS.sneaky);
+    expect(cachedInstanceUrl('uat', { cache: { uat: { url: URLS.uat, at: fresh } }, now, username: 'u@sb.com', lookup: () => URLS.sneaky }).url).toBe(URLS.sneaky);
+  });
+  test('aliasUsername reads the sf alias files', () => {
+    const files = (map) => (f) => map[f] ?? null;
+    const u = (map) => aliasUsername('uat', { homeDir: '/h', readFile: files(map) });
+    expect(u({ '/h/.sfdx/alias.json': '{"orgs":{"uat":"u@sb.com"}}' })).toBe('u@sb.com');
+    expect(u({ '/h/.sfdx/alias.json': '{"orgs":{}}' })).toBe('uat');
+    expect(u({})).toBeNull();
+    expect(u({ '/h/.sfdx/alias.json': '{oops' })).toBeNull();
+    expect(u({ '/h/.sfdx/alias.json': '{"orgs":{"uat":"u@sb.com"}}', '/h/.sf/alias.json': '{"orgs":{"uat":"someone@prod.com"}}' })).toBeNull();
+    expect(u({ '/h/.sfdx/alias.json': '{"orgs":{"uat":"u@sb.com"}}', '/h/.sf/alias.json': '{"orgs":{"uat":"u@sb.com"}}' })).toBe('u@sb.com');
+  });
+});
+
+describe('round 4 J-2: pattern groups', () => {
+  test('a pattern group that holds a substitution is blocked; arrays still split', () => {
+    blocked("ls s($(s''f data query -o prod)|x)", /can't read a pattern group/);
+    for (const c of ["arr=($(s''f data query -q x -o prod))", 'arr=($(sf data query -q x -o prod))']) blocked(c, /hides the command|"prod" is not listed/);
+    allowed('arr=(a b); echo ok');
+  });
+});
+
+describe('round 4 J-1: whole command ids catch incomplete commands; doctor --command', () => {
+  test('an incomplete login or token command is blocked', () => {
+    for (const c of ['sf jwt grant --client-id x --jwt-key-file k --username a@b.c', 'sf sfdx-url login -f auth.txt', 'sf show-access-token -o uat',
+      'sf show-user-password -o uat', 'sf accesstoken store']) blocked(c, /authorises|access token, password/);
+  });
+  test('sf doctor --command is blocked; plain sf doctor is org-free', () => {
+    for (const c of ['sf doctor --command "data query -q x -o prod"', 'sf doctor -c "data query"', 'sf doctor --command=x', 'sf doctor -ic x']) blocked(c, /doctor --command/);
+    allowed('sf doctor', ctx({ defaultOrg: () => null }));
+  });
+});
+
+describe('round 4: here-documents, case patterns and patterns packed in a word', () => {
+  test('here-document bodies and case patterns are not commands', () => {
+    allowed("git commit -m \"$(cat <<'EOF'\nWhy?\n- fix [x] (see notes)\nEOF\n)\"");
+    allowed('cat <<-EOF > notes.txt\n\t- item\n\tEOF\necho done');
+    allowed("cat << 'EOF'\nWhy? [x] (a|b)\nEOF");
+    allowed('echo $((1 << 2)); (( x = 1 << 2 )); echo $[1 << 2]\necho done\n2');
+    allowed('case $f in *.js) echo js;; *) echo other;; esac');
+  });
+  test('what a here-document hides is still found', () => {
+    blocked("python3 <<'EOF'\nimport os\nos.system('s''f data query -o prod')\nEOF", /could not find every sf command/);
+    blocked('cat <<EOF\n$(sf data query -q x -o prod)\nEOF', /"prod" is not listed/);
+    blocked('cat <<EOF; sf data query -q x -o prod\nbody\nEOF', /"prod" is not listed/);
+    blocked("bash <<'EOF'\nsf data query -q x -o prod\nEOF", /hides the command/);
+    blocked("cat <<'EOF'\n/usr/local/bin/s? data query -o prod\nEOF", /could not find every sf command/);
+    blocked('(( x = 1 << 2 ))\nx=sf; $x data query -q x -o prod\n2', /computed command name/);
+    blocked('echo $[1<<2]\nx=sf; $x data query -q x -o prod\n2]', /computed command name/);
+  });
+  test('patterns inside a word that is a command line, POSIX classes, and spaces inside command words', () => {
+    blocked("arch zsh -c '/usr/local/bin/s? data query -o prod'", /could not find every sf command/);
+    blocked('arch /usr/local/bin/s[[:alpha:]] data query -o prod', /could not find every sf command/);
+    blocked('sf display\\ org -o uat', /access token/);
   });
 });
