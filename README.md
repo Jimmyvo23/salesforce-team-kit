@@ -107,7 +107,7 @@ Each task's progress (a percentage and a stage) is worked out from these events:
 
 ## The org guard
 
-Before every Bash command, `.team/bin/hooks/guard-org.mjs` checks each `sf` call in it, including chained commands, `$(…)`, `bash -c "…"`, `eval`, commands piped into a shell, `sudo`/`env`/`nohup`-style wrappers and `xargs`/`find -exec`. It finds the target org from `-o`/`--target-org`, `-v`/`--target-dev-hub`, `--from-org` or `--source-org` (the deprecated `-u`/`--targetusername` and `--targetdevhubusername` count too), or, the way `sf` does, from `SF_TARGET_ORG` (or `SFDX_DEFAULTUSERNAME`), then the default org of the SFDX project the command runs in, then your global default org. If neither a flag nor a default org exists, the command is blocked. A default Dev Hub (`SF_TARGET_DEV_HUB` or `target-dev-hub`) must also be a listed sandbox when a command has no org flag.
+Before every Bash command, `.team/bin/hooks/guard-org.mjs` checks each `sf` call in it, including chained commands, `$(…)`, `bash -c "…"`, `eval`, commands piped into a shell, `sudo`/`env`/`nohup`-style wrappers and `xargs`/`find -exec`. It finds the target org from `-o`/`--target-org`, `-v`/`--target-dev-hub`, `--from-org` or `--source-org` (the deprecated `-u`/`--targetusername` and `--targetdevhubusername`, and the plugin aliases `--fromorg`, `--target-hub-org` and `--dev-hub-org`, count too), or, the way `sf` does, from `SF_TARGET_ORG` (or `SFDX_DEFAULTUSERNAME`), then the default org of the SFDX project the command runs in, then your global default org. If neither a flag nor a default org exists, the command is blocked. A default Dev Hub (`SF_TARGET_DEV_HUB` or `target-dev-hub`) must also be a listed sandbox when a command has no org flag. If the new `.sf` and the legacy `.sfdx` config, or the `SF_` and `SFDX_` variables, name different default orgs, a command without `-o` is blocked. Any other long flag that mentions org, hub or username is blocked unless the guard knows it is not an org flag.
 
 - The alias must be listed under `orgs.sandbox` in `.team/team.json`.
 - Its instance URL must be a sandbox domain (looked up once a day with `sf org display` and cached in `.team/org-cache.json`, so an alias Jimmy points at a different org is re-checked within 24 hours; the access token in that output is never printed or stored).
@@ -115,15 +115,15 @@ Before every Bash command, `.team/bin/hooks/guard-org.mjs` checks each `sf` call
   - quick deploys (`sf project deploy quick`, `sf deploy metadata quick`)
   - anything that prints tokens: `sf org display`, `sf org open --url-only` (or `-r`), `sf org list --json`
   - logins and logouts (`sf org login`, `sf org logout`, and the legacy `sf auth`, `sf login`, `sf logout`)
-  - changing the default org or aliases: `sf config set` or `unset` of `target-org` or `target-dev-hub`, and `sf alias set` or `unset`
+  - changing the default org or aliases: `sf config set` or `unset` of `target-org`, `target-dev-hub` or their legacy names (`defaultusername` and the like), and `sf alias set` or `unset`
   - the legacy `sfdx` command
 - The guard fails closed. It also blocks:
   - `sf` arguments built at run time (any `$` or backtick in an `sf` argument, including inside a SOQL string), and command names built at run time (`$SF …`)
   - shells nested more than three deep, commands piped into a shell (`… | bash`), and scripts that contain `sf` commands
-  - any line where it finds more `sf <word>` mentions than `sf` commands it could check, for example `echo "run sf deploy"` or a commit message that mentions `sf deploy`. Rephrase the text or run the `sf` command on its own.
+  - any line where it finds more `sf <word>` mentions, or more words that are just `sf`, than `sf` commands it could check, for example `echo "run sf deploy"`, `grep sf notes.txt` or a commit message that mentions `sf deploy`. Rephrase the text or run the `sf` command on its own.
   - every `sf` org command when it cannot find the project folder or read `.team/team.json`, or when its own files fail to load
-  - setting `SF_`/`SFDX_` variables on the line (`SF_TARGET_ORG=… sf …`, `env`, `export`, `declare -x`), changing `HOME` on a line that runs `sf`, and `--flags-dir`
-  - `sf` org commands without `-o` on a line that changes folder (`cd`, `pushd`, `popd`) or that run in a folder outside the project
+  - setting `SF_`/`SFDX_` variables on the line (`SF_TARGET_ORG=… sf …`, `env`, `export`, `declare -x`), changing `HOME`, `XDG_CONFIG_HOME` or `XDG_DATA_HOME` on a line that runs `sf`, and `--flags-dir`
+  - `sf` org commands without `-o` on a line that changes folder (`cd`, `pushd`, `popd`) or clears variables (`env -i`, `env -u`), or that run in a folder outside the project
   - scripts it can't read (missing, a folder, or a relative script after `cd` on the same line)
 - `xargs … sf …` and `find -exec … sf …` are blocked; run those `sf` commands directly.
 
@@ -133,7 +133,7 @@ A block shows the reason to the agent and puts a "Guard blocked" line in the off
 
 - **The guard is a seatbelt, not a sandbox.** An agent calling the Salesforce REST API directly (for example with `curl`) would get past it. The agent rules forbid this and the Reviewer checks for it. `npm run` scripts that call `sf` are not inspected.
 - **Agents can edit the guard's inputs.** `.team/team.json` and `.team/org-cache.json` are ordinary project files. The guard trusts a cached instance URL for 24 hours, so an agent that rewrote both files could get a non-sandbox alias past it. Not authorising production on this machine is what closes this gap.
-- **Agents can also remove the guard.** Admin and Developer can edit `.claude/settings.json` and `.team/bin/`, which could remove the hook. A renamed, copied or symlinked `sf` binary, or `sf` started from `node`, `python` or another program, is not inspected. The hook only runs if Claude Code finds it through `$CLAUDE_PROJECT_DIR`. Same seatbelt: not authorising production on this machine is the real protection.
+- **Agents can also remove the guard.** Admin and Developer can edit `.claude/settings.json` and `.team/bin/`, which could remove the hook. A renamed, copied or symlinked `sf` binary, or `sf` started from `node`, `python` or another program, is not inspected. The hook only runs if Claude Code finds it through `$CLAUDE_PROJECT_DIR`. Shell functions and aliases from your own shell setup (for example one that changes folder) are not visible to the guard. Same seatbelt: not authorising production on this machine is the real protection.
 - **Hook data.** What the hooks receive was captured with Claude Code 2.1.290 (`docs/decisions/S-0-hook-input.md`); the guard's block behaviour was checked with Claude Code 2.1.300 as described in `docs/decisions/S-1-guard-in-claude-code.md`.
 - **Agents may skip status calls.** The hooks still record when each agent starts and stops and which files and commands it touches.
 - **Hook text is not a redaction layer.** Do not treat the log as private.
