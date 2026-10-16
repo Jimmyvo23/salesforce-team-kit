@@ -1,0 +1,27 @@
+{
+  "id": "S1",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "One trigger that delegates to a handler class (no logic in the trigger body)",
+      "met": true,
+      "evidence": "trigger ContactTrigger on Contact (after insert, after update) { ContactTriggerHandler.updateAccountLastContactDate(Trigger.new, Trigger.oldMap); }"
+    },
+    {
+      "item": "Bulkified: collects Account Ids, one query and one DML for the whole batch, no SOQL or DML inside a loop",
+      "met": false,
+      "evidence": "It collects Account Ids in a Set and does a single `update accounts;` with no SOQL or DML in a loop. But it has no query at all, so 'one query' isn't met."
+    },
+    {
+      "item": "Uses WITH USER_MODE (or Security.stripInaccessible / AccessLevel.USER_MODE) and a with sharing class",
+      "met": false,
+      "evidence": "public without sharing class ContactTriggerHandler; no USER_MODE or stripInaccessible found"
+    },
+    {
+      "item": "The test inserts or updates 200 records and asserts the Account values with the Assert class (not only coverage)",
+      "met": false,
+      "evidence": "The bulk test inserts 200 Contacts but asserts with System.assertEquals, not the Assert class: `System.assertEquals(Date.today(), a.Last_Contact_Date__c);`"
+    }
+  ]
+}

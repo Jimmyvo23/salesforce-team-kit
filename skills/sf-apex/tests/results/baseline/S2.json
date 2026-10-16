@@ -1,0 +1,22 @@
+{
+  "id": "S2",
+  "mode": "baseline",
+  "pass": true,
+  "items": [
+    {
+      "item": "Uses a Named Credential (callout:...) instead of a hard-coded URL or credentials",
+      "met": true,
+      "evidence": "ENDPOINT = 'callout:ERP/api/orders'; notes explain creating a Named Credential called ERP"
+    },
+    {
+      "item": "Makes the callout asynchronously (Queueable with Database.AllowsCallouts or @future(callout=true)), not directly in the trigger transaction",
+      "met": true,
+      "evidence": "System.enqueueJob(new PostOrdersJob(orderIds)); class PostOrdersJob implements Queueable, Database.AllowsCallouts"
+    },
+    {
+      "item": "Includes a test that uses HttpCalloutMock with Test.setMock, covering a failure response",
+      "met": true,
+      "evidence": "Test.setMock(HttpCalloutMock.class, new MockErp(500)); nonSuccessResponseThrows asserts ErpException contains '500'"
+    }
+  ]
+}

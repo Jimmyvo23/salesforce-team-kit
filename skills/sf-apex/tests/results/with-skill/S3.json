@@ -1,0 +1,22 @@
+{
+  "id": "S3",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Uses Batch Apex (Database.Batchable) scheduled with a Schedulable class, not a loop of Queueables or a single transaction",
+      "met": true,
+      "evidence": "AccountScoreBatch implements Database.Batchable<SObject>; AccountScoreSchedule implements Schedulable and calls Database.executeBatch(new AccountScoreBatch(), 200)"
+    },
+    {
+      "item": "Keeps queries and DML bulk inside execute, with no per-record SOQL",
+      "met": true,
+      "evidence": "execute loops over scope with no SOQL, collects 'changed', then a single Database.update(changed, false, AccessLevel.SYSTEM_MODE)"
+    },
+    {
+      "item": "Includes a test using Test.startTest() and Test.stopTest() that asserts results",
+      "met": true,
+      "evidence": "batchScores200Accounts: Test.startTest(); Database.executeBatch(...); Test.stopTest(); Assert.areEqual(200, [SELECT COUNT() FROM Account WHERE Score__c = 15], ...)"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "S3",
+  "mode": "baseline",
+  "pass": true,
+  "items": [
+    {
+      "item": "Uses Batch Apex (Database.Batchable) scheduled with a Schedulable class, not a loop of Queueables or a single transaction",
+      "met": true,
+      "evidence": "AccountRecalcBatch implements Database.Batchable<SObject>; AccountRecalcSchedulable implements Schedulable and calls Database.executeBatch(new AccountRecalcBatch(), SCOPE_SIZE)"
+    },
+    {
+      "item": "Keeps queries and DML bulk inside execute, with no per-record SOQL",
+      "met": true,
+      "evidence": "execute builds a 'changed' list in the loop (no SOQL) and does a single Database.update(changed, false); the query is in start via QueryLocator"
+    },
+    {
+      "item": "Includes a test using Test.startTest() and Test.stopTest() that asserts results",
+      "met": true,
+      "evidence": "Test.startTest(); Database.executeBatch(...); Test.stopTest(); System.assertEquals('Enterprise', byName.get('Big').Revenue_Tier__c)"
+    }
+  ]
+}

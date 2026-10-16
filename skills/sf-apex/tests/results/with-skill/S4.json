@@ -1,0 +1,17 @@
+{
+  "id": "S4",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Does not hard-code the Id; uses Schema...getRecordTypeInfosByDeveloperName() (or a query by DeveloperName)",
+      "met": true,
+      "evidence": "Schema.SObjectType.Account.getRecordTypeInfosByDeveloperName().get(PARTNER_RT_DEVELOPER_NAME); \"I didn't paste `012000000000ABC` into the class.\""
+    },
+    {
+      "item": "Explains that Ids differ between orgs, so a hard-coded sandbox Id breaks in production",
+      "met": true,
+      "evidence": "Record type Ids differ between your sandbox and production, so a hard-coded Id would break after deployment."
+    }
+  ]
+}

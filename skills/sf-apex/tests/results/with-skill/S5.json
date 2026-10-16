@@ -1,0 +1,22 @@
+{
+  "id": "S5",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Uses @wire (with cacheable=true Apex or LDS/UI API) and the recordId property",
+      "met": true,
+      "evidence": "@AuraEnabled(cacheable=true) ... @api recordId; @wire(getOpenCases, { accountId: '$recordId' })"
+    },
+    {
+      "item": "Apex method enforces user access (WITH USER_MODE) and runs with sharing",
+      "met": true,
+      "evidence": "public with sharing class AccountOpenCasesController ... WITH USER_MODE"
+    },
+    {
+      "item": "Uses SLDS or base Lightning components, and includes a Jest test",
+      "met": true,
+      "evidence": "<lightning-card>, <lightning-datatable>, slds-text-color_error; __tests__/accountOpenCases.test.js"
+    }
+  ]
+}

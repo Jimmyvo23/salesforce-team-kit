@@ -1,0 +1,17 @@
+{
+  "id": "S4",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Does not hard-code the Id; uses Schema...getRecordTypeInfosByDeveloperName() (or a query by DeveloperName)",
+      "met": false,
+      "evidence": "Offers hard-coded options ('private static final Id PARTNER_RT_ID = '012000000000ABC';') and only suggests the developer-name lookup as an optional alternative: 'I can do that instead if you'd like.' Nothing was implemented."
+    },
+    {
+      "item": "Explains that Ids differ between orgs, so a hard-coded sandbox Id breaks in production",
+      "met": true,
+      "evidence": "Record type Ids differ between orgs, so a hardcoded sandbox Id will break after deploying to production."
+    }
+  ]
+}

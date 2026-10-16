@@ -1,0 +1,22 @@
+{
+  "id": "S2",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Uses a Named Credential (callout:...) instead of a hard-coded URL or credentials",
+      "met": true,
+      "evidence": "ENDPOINT = 'callout:ERP/api/orders'; Named Credential `ERP` holds the URL and authentication"
+    },
+    {
+      "item": "Makes the callout asynchronously (Queueable with Database.AllowsCallouts or @future(callout=true)), not directly in the trigger transaction",
+      "met": true,
+      "evidence": "OrderErpSyncJob implements Queueable, Database.AllowsCallouts; trigger handler calls System.enqueueJob(new OrderErpSyncJob(ids))"
+    },
+    {
+      "item": "Includes a test that uses HttpCalloutMock with Test.setMock, covering a failure response",
+      "met": true,
+      "evidence": "ErpMock implements HttpCalloutMock; Test.setMock(HttpCalloutMock.class, new ErpMock(500)) in serverErrorIsStoredOnTheOrder, plus a timeout test"
+    }
+  ]
+}

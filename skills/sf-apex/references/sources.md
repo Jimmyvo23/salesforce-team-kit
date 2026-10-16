@@ -1,0 +1,33 @@
+# Sources
+
+On 2026-10-16, developer.salesforce.com returned HTTP 403 to WebFetch and curl, and help.salesforce.com pages render only with JavaScript. The Apex Developer Guide (Version 68.0, Winter '27, last updated 2026-10-16) was read from its official PDF edition. Apex Reference and LWC Developer Guide topics have no PDF there, so they were checked through WebSearch on the official domains, and through Salesforce's own GitHub repositories.
+
+## Read in the official PDF (Apex Developer Guide v68.0)
+
+PDF: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf
+
+- Bulk triggers, chunks of 200, callouts from triggers must be asynchronous: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Triggers and Order of Execution", "Trigger Considerations") (checked 2026-10-16)
+- No SOQL or DML in loops, governor limits (100/200 SOQL, 150 DML, 100 callouts, 120 s callout time, 50 enqueueJob sync and 1 async, scheduled Apex uses synchronous limits): https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Execution Governors and Limits") (checked 2026-10-16)
+- `with sharing`, `without sharing`, `inherited sharing`; omitted sharing defaults to with sharing at API 67.0 and later, and the older rules for 66.0 and earlier; triggers run without sharing but their database operations default to user mode at 67.0 and later: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Use the with sharing, without sharing, and inherited sharing Keywords") (checked 2026-10-16)
+- `WITH USER_MODE`, `as user` / `as system`, `AccessLevel.USER_MODE`; user mode is the default at API 67.0 and later and system mode at 66.0 and earlier; `WITH SECURITY_ENFORCED` is not allowed at 67.0 and later: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Enforcing Object and Field Permissions", "Set an Access Mode for Database Operations", "Versioned Behavior Changes") (checked 2026-10-16)
+- `Security.stripInaccessible` and `SObjectAccessDecision`: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Enforce Security with the stripInaccessible Method") (checked 2026-10-16)
+- Queueable (`Database.AllowsCallouts`, chaining, limits, Transaction Finalizers), Batch Apex (QueryLocator up to 50 million rows, scope default 200 and maximum 2,000, 5 active jobs, 100 in the flex queue, testing one execute), Apex Scheduler (100 scheduled jobs, runs as system, keep processing in a separate class): https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Asynchronous Apex") (checked 2026-10-16)
+- Named Credentials as callout endpoints (`callout:Name/path`); store secrets in Named Credentials, not custom settings: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Named Credentials as Callout Endpoints", "Custom Settings") (checked 2026-10-16)
+- `HttpCalloutMock`, `Test.setMock`, and DML before mock callouts (DML, then `Test.startTest`, then `Test.setMock`): https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Testing HTTP Callouts by Implementing the HttpCalloutMock Interface", "Performing DML Operations and Mock Callouts") (checked 2026-10-16)
+- `@TestSetup`, `SeeAllData`, `Test.startTest`/`stopTest`, `System.runAs`, `Assert` class examples: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Testing Apex") (checked 2026-10-16)
+- `@AuraEnabled(cacheable=true)` only for methods that don't change data: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("AuraEnabled Annotation") (checked 2026-10-16)
+
+## Checked through search (official pages)
+
+- RecordTypeInfo and `getRecordTypeInfosByDeveloperName()`: https://developer.salesforce.com/docs/atlas.en-us.apexref.meta/apexref/apex_class_Schema_RecordTypeInfo.htm (checked 2026-10-16)
+- Custom metadata `getAll()` and `getInstance()` without SOQL: https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_methods_system_custom_metadata_types.htm and https://help.salesforce.com/s/articleView?id=release-notes.rn_forcecom_dev_cmt.htm&language=en_US&release=230&type=5 (checked 2026-10-16)
+- Custom metadata allocations: https://help.salesforce.com/s/articleView?language=en_US&id=sf.custommetadatatypes_limits.htm&type=5 (checked 2026-10-16)
+- `Assert` class: https://developer.salesforce.com/docs/atlas.en-us.apexref.meta/apexref/apex_class_System_Assert.htm and https://developer.salesforce.com/blogs/2022/11/write-clear-and-intentional-apex-assertions-with-the-new-assert-class (checked 2026-10-16)
+- LWC: wire Apex methods (`cacheable=true`, static, reactive `$` parameters): https://developer.salesforce.com/docs/platform/lwc/guide/apex-wire-method.html (checked 2026-10-16)
+- LWC: `refreshApex` and `notifyRecordUpdateAvailable`: https://developer.salesforce.com/docs/platform/lwc/guide/apex-result-caching.html (checked 2026-10-16)
+- LWC: data guidelines (Lightning Data Service first): https://developer.salesforce.com/docs/platform/lwc/guide/data-guidelines (checked 2026-10-16)
+- LWC: `getRelatedListRecords`: https://developer.salesforce.com/docs/platform/lwc/guide/reference-wire-adapters-get-related-list-records.html (checked 2026-10-16)
+- LWC: record context `@api recordId`: https://developer.salesforce.com/docs/platform/lwc/guide/use-record-context.html (checked 2026-10-16)
+- LWC: `lightning__RecordPage` target and `objects`: https://developer.salesforce.com/docs/platform/lwc/guide/targets-lightning-record-page.html (checked 2026-10-16)
+- LWC Jest tests for the wire service (`createApexTestWireAdapter`, `emit`, `error`, `getLastConfig`): https://developer.salesforce.com/docs/platform/lwc/guide/unit-testing-using-wire-utility.html and https://github.com/salesforce/wire-service-jest-util/blob/master/README.md (README read directly, checked 2026-10-16)
+- Jest wire-test example from Salesforce's LWC recipes: https://github.com/trailheadapps/lwc-recipes/blob/main/force-app/main/default/lwc/apexWireMethodToProperty/__tests__/apexWireMethodToProperty.test.js (read directly, checked 2026-10-16)
