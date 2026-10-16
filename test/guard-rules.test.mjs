@@ -768,3 +768,14 @@ describe('round 5 K-3: an incomplete command sf would finish with a prompt', () 
       'sf data query -o uat -q x | head', 'echo x | sf config get target-org', 'sf force:org:list | cat', 'sf start -c x -o uat']) allowed(c);
   });
 });
+
+describe('round 5 K-1: a line that may create files keeps the could-match rule', () => {
+  test('files written earlier on the line could be what a pattern matches', () => {
+    const c = ctx({ expandGlob: () => [] });
+    for (const s of ['printf x > sf; arch s? data query -q x -o prod', 'cp /usr/local/bin/s?? .; arch s? data query -o prod',
+      'ln -s /usr/local/bin/sf ./x && arch ./x data query -o prod; arch ./? data query -o prod']) blocked(s, /could not find every sf command/, c);
+    allowed('ls *', c);
+    allowed('wc -l *.js | sort', c);
+    allowed('git add force-app/**/*.xml', c);
+  });
+});
