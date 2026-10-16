@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { decide, checkSf, isSandboxUrl, readDefaultOrg, cachedInstanceUrl, CACHE_TTL_MS, findSfdxProject } from '../lib/guard.mjs';
+import { decide, checkSf, isSandboxUrl, readDefaultOrg, resolveDefaultOrg, cachedInstanceUrl, CACHE_TTL_MS, findSfdxProject } from '../lib/guard.mjs';
 
 const URLS = {
   uat: 'https://acme--uat.sandbox.my.salesforce.com',
@@ -303,7 +303,9 @@ describe('final fix F-1: readDefaultOrg reads the environment first', () => {
   const files = (map) => (f) => map[f] ?? null;
   const cfg = files({ '/p/.sf/config.json': '{"target-org":"uat","target-dev-hub":"hub"}' });
   test('SF_TARGET_ORG, then SFDX_DEFAULTUSERNAME, then config', () => {
-    expect(readDefaultOrg({ projectDir: '/p', homeDir: '/h', readFile: cfg, env: { SF_TARGET_ORG: 'prod', SFDX_DEFAULTUSERNAME: 'old' } })).toBe('prod');
+    expect(readDefaultOrg({ projectDir: '/p', homeDir: '/h', readFile: cfg, env: { SF_TARGET_ORG: 'prod' } })).toBe('prod');
+    // Round 2 G-1: SF_ and SFDX_ values that disagree are a conflict, so there is no trusted default.
+    expect(readDefaultOrg({ projectDir: '/p', homeDir: '/h', readFile: cfg, env: { SF_TARGET_ORG: 'prod', SFDX_DEFAULTUSERNAME: 'old' } })).toBeNull();
     expect(readDefaultOrg({ projectDir: '/p', homeDir: '/h', readFile: cfg, env: { SFDX_DEFAULTUSERNAME: 'old' } })).toBe('old');
     expect(readDefaultOrg({ projectDir: '/p', homeDir: '/h', readFile: cfg, env: { SF_TARGET_ORG: ' ' } })).toBe('uat');
   });
@@ -330,7 +332,7 @@ describe('final fix F-2: folder changes and scripts', () => {
       'env -C /tmp/other sf data query -q x']) {
       blocked(c, /This line changes folder/);
     }
-    allowed('env -i sf data query -q x');
+    allowed('env -i sf data query -o uat -q x');
     allowed('cd force-app && sf project deploy start -o uat -m ApexClass:Foo');
     allowed('cd force-app && sf project generate manifest --source-dir .');
   });
@@ -366,5 +368,88 @@ describe('final fix F-2: findSfdxProject', () => {
     expect(findSfdxProject('/a/b/c', has(['/a/b/c/sfdx-project.json']))).toBe('/a/b/c');
     expect(findSfdxProject('/a/b/c', has(['/a/sfdx-project.json']))).toBe('/a');
     expect(findSfdxProject('/a/b/c', has([]))).toBeNull();
+  });
+});
+
+describe('round 2 G-1: new and legacy config that disagree', () => {
+  const files = (map) => (f) => map[f] ?? null;
+  const r = (map, o = {}) => resolveDefaultOrg({ projectDir: '/p', homeDir: '/h', readFile: files(map), ...o });
+  test('different values in one place are a conflict', () => {
+    expect(r({ '/p/.sf/config.json': '{"target-org":"uat"}', '/p/.sfdx/sfdx-config.json': '{"defaultusername":"prod"}' })).toEqual({ org: null, conflict: 'config' });
+    expect(r({ '/h/.sf/config.json': '{"target-org":"uat"}', '/h/.sfdx/sfdx-config.json': '{"defaultusername":"prod"}' })).toEqual({ org: null, conflict: 'config' });
+    expect(r({ '/p/.sf/config.json': '{"target-dev-hub":"a"}', '/p/.sfdx/sfdx-config.json': '{"defaultdevhubusername":"b"}' }, { hub: true })).toEqual({ org: null, conflict: 'config' });
+  });
+  test('the same value in both files, or values in different places, are fine', () => {
+    expect(r({ '/h/.sf/config.json': '{"target-org":"uat"}', '/h/.sfdx/sfdx-config.json': '{"defaultusername":"uat"}' })).toEqual({ org: 'uat', conflict: null });
+    expect(r({ '/p/.sf/config.json': '{"target-org":"uat"}', '/h/.sfdx/sfdx-config.json': '{"defaultusername":"prod"}' })).toEqual({ org: 'uat', conflict: null });
+    expect(r({ '/p/.sfdx/sfdx-config.json': '{"defaultusername":"dev"}' })).toEqual({ org: 'dev', conflict: null });
+  });
+  test('SF_ and SFDX_ variables that disagree are a conflict', () => {
+    expect(r({}, { env: { SF_TARGET_ORG: 'uat', SFDX_DEFAULTUSERNAME: 'prod' } })).toEqual({ org: null, conflict: 'env' });
+    expect(r({}, { env: { SF_TARGET_DEV_HUB: 'a', SFDX_DEFAULTDEVHUBUSERNAME: 'b' }, hub: true })).toEqual({ org: null, conflict: 'env' });
+    expect(r({}, { env: { SF_TARGET_ORG: 'uat', SFDX_DEFAULTUSERNAME: 'uat' } })).toEqual({ org: 'uat', conflict: null });
+  });
+  test('readDefaultOrg gives null on a conflict', () => {
+    expect(readDefaultOrg({ projectDir: '/p', homeDir: '/h', readFile: files({ '/p/.sf/config.json': '{"target-org":"uat"}', '/p/.sfdx/sfdx-config.json': '{"defaultusername":"prod"}' }) })).toBeNull();
+  });
+});
+
+describe('round 2 G-2: obfuscated sf names behind unknown wrappers', () => {
+  test('every word that is sf counts for the backstop', () => {
+    blocked('caffeinate "s"f data query -q x -o prod', /"prod"/); // caffeinate is a known wrapper, so sf is checked
+    for (const c of ['arch -x86_64 s\\f data query -q x -o prod', "screen -dm s''f data query -q x -o prod",
+      'arch -x86_64 /usr/local/bin/s\\f data query -o prod', 'arch sf.cmd data query -o prod', 'grep sf notes.txt', 'bash -c "arch s\\f data query -o prod"']) {
+      blocked(c, /could not find every sf command/);
+    }
+    for (const c of ['echo salesforce', 'git status', 'eval sf org list', 'bash -c "sf org list"', 'sudo -u root sf org list',
+      'sf org list && /usr/local/bin/sf project deploy start -o uat']) allowed(c);
+  });
+});
+
+describe('round 2 G-3: legacy config keys', () => {
+  test('setting or unsetting a legacy default org key is blocked', () => {
+    for (const c of ['sf config set defaultusername=prod', 'sf config set defaultusername prod', 'sf config set targetusername=prod',
+      'sf force:config:set defaultusername=prod', 'sf config set defaultdevhubusername=prod', 'sf config set targetdevhubusername prod',
+      'sf config unset defaultusername', 'sf config set DefaultUsername=prod']) blocked(c, /Changing the default org/);
+    allowed('sf config set org-api-version=62.0');
+  });
+});
+
+describe('round 2 G-4: org flag aliases and unknown org-like flags', () => {
+  test('aliases from the installed plugins name an org', () => {
+    for (const c of ['sf project generate manifest --fromorg prod', 'sf project generate manifest --fromorg=prod',
+      'sf package version create -p x --target-hub-org prod', 'sf package version create -p x --target-hub-org=prod',
+      'sf package bundle install -b x -o uat --dev-hub-org prod', 'sf package bundle install -b x -o uat --dev-hub-org=prod',
+      'sf package bundle install -b x -o uat -d prod', 'sf package bundle install -b x -o uat -dprod',
+      'sf agent generate template -s prod --agent-file a.json', 'sf agent generate template -sprod --agent-file a.json']) blocked(c, /"prod" is not listed/);
+    allowed('sf project deploy start -o uat -d force-app');
+    allowed('sf org create user -o uat -s');
+  });
+  test('other long flags that mention org, hub or username are blocked unless known', () => {
+    for (const [c, f] of [['sf data query -o uat --org-alias prod -q x', '--org-alias'], ['sf data query -q x --hub prod', '--hub'],
+      ['sf data query -q x --some-username=a', '--some-username'], ['sf org create scratch -v uat --username a@b.c -f x.json', '--username'],
+      ['sf data query -q x --TargetOrg prod', '--TargetOrg']]) {
+      blocked(c, new RegExp(`The guard doesn't know the flag ${f}\\. Use -o <sandbox alias> or ask Jimmy\\.`));
+    }
+    for (const c of ['sf package create -n x -v uat --org-dependent', 'sf package create -n x -v uat --orgdependent',
+      'sf org create user -o uat --set-unique-username', 'sf org create user -o uat --setuniqueusername',
+      'sf package update -p x -v uat --error-notification-username a@b.c', 'sf package update -p x -v uat --errornotificationusername=a@b.c',
+      'sf package push-upgrade schedule -v uat -p x --org-list 00D1,00D2', 'sf package push-upgrade schedule -v uat -p x --org-file orgs.csv',
+      'sf org create agent-user -o uat --base-username a@b.c']) allowed(c);
+  });
+});
+
+describe('round 2 G-5: clearing the environment', () => {
+  test('env -i, env -u and changing XDG folders need an explicit org', () => {
+    for (const c of ['env -i sf data query -q x', 'env --ignore-environment sf data query -q x', 'env - sf data query -q x',
+      'env -u FOO sf data query -q x', 'env --unset=FOO sf data query -q x', 'env -uFOO sf data query -q x', 'sudo env -i sf data query -q x']) {
+      blocked(c, /This line changes the environment sf reads\. Pass -o <sandbox alias>\./);
+    }
+    allowed('env -i sf data query -o uat -q x');
+    allowed('env -u FOO sf data query -o uat -q x');
+    blocked('unset SF_TARGET_ORG; sf data query -q x', /SF_\/SFDX_ variables/);
+    for (const c of ['XDG_CONFIG_HOME=/tmp/h sf data query -q x', 'XDG_DATA_HOME=/tmp/h sf data query -o uat -q x',
+      'export XDG_CONFIG_HOME=/tmp/h; sf data query -o uat -q x']) blocked(c, /XDG/);
+    allowed('XDG_CONFIG_HOME=/tmp/h npm test');
   });
 });

@@ -241,3 +241,24 @@ test('final fix F-3: a run that rejects exits 2', async () => {
   await finish(Promise.resolve(0), (c) => { codes.push(c); });
   expect(codes).toEqual([2, 0]);
 });
+
+describe('round 2 G-1: the hook blocks a default org the new and legacy config disagree on', () => {
+  test('.sf and .sfdx in the project name different orgs', () => {
+    fs.writeFileSync(path.join(project, 'sfdx-project.json'), '{}');
+    fs.mkdirSync(path.join(project, '.sf'));
+    fs.mkdirSync(path.join(project, '.sfdx'));
+    fs.writeFileSync(path.join(project, '.sf', 'config.json'), '{"target-org":"uat"}');
+    fs.writeFileSync(path.join(project, '.sfdx', 'sfdx-config.json'), '{"defaultusername":"uat"}');
+    expect(runHook(bash('sf data query -q x')).status).toBe(0);
+    fs.writeFileSync(path.join(project, '.sfdx', 'sfdx-config.json'), '{"defaultusername":"prod"}');
+    const r = runHook(bash('sf data query -q x'));
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('The new and legacy sf config name different default orgs. Pass -o <sandbox alias>.');
+    expect(runHook(bash('sf data query -o uat -q x')).status).toBe(0);
+  });
+  test('SF_TARGET_ORG and SFDX_DEFAULTUSERNAME name different orgs', () => {
+    const r = runHook(bash('sf data query -q x'), { SF_TARGET_ORG: 'uat', SFDX_DEFAULTUSERNAME: 'prod' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/SF_ and SFDX_ variables name different default orgs\. Pass -o <sandbox alias>\./);
+  });
+});

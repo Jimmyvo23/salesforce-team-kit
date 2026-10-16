@@ -83,11 +83,15 @@ function lookupInstanceUrl(alias) {
 export function guard(input, { projectDir, homeDir, now, env = process.env }) {
   if (!input || typeof input !== 'object' || input.tool_name !== 'Bash') return { allow: true };
   if (!kit) throw new Error(`the guard's files did not load: ${loadError}`);
-  const { decide, readDefaultOrg, cachedInstanceUrl, findSfdxProject } = kit.guardLib;
+  const { decide, resolveDefaultOrg, cachedInstanceUrl, findSfdxProject } = kit.guardLib;
   const command = typeof input.tool_input?.command === 'string' ? input.tool_input.command : '';
   // sf resolves the project config and relative paths from the folder the command runs in.
   const base = typeof input.cwd === 'string' && input.cwd ? path.resolve(projectDir, input.cwd) : projectDir;
   const sfdxRoot = findSfdxProject(base, (f) => fs.existsSync(f));
+  const sources = { projectDir: sfdxRoot, homeDir, readFile: readOrNull, env };
+  const org = resolveDefaultOrg(sources);
+  const hub = resolveDefaultOrg({ ...sources, hub: true });
+  const conflict = org.conflict ?? hub.conflict;
   const loaded = kit.team.loadTeam(path.join(projectDir, '.team', 'team.json'));
   const cachePath = path.join(projectDir, CACHE_FILE);
   /** @type {Record<string, { url: string, at: string }>} */
@@ -101,9 +105,11 @@ export function guard(input, { projectDir, homeDir, now, env = process.env }) {
   return decide(command, {
     sandboxes: loaded.ok ? loaded.team.orgs.sandbox : null,
     teamError: loaded.ok ? undefined : loaded.error,
-    defaultOrg: () => readDefaultOrg({ projectDir: sfdxRoot, homeDir, readFile: readOrNull, env }),
-    defaultDevHub: () => readDefaultOrg({ projectDir: sfdxRoot, homeDir, readFile: readOrNull, env, hub: true }),
-    mustNameOrg: isInside(projectDir, base) ? null : 'Pass -o <sandbox alias>; this folder is outside the project.',
+    defaultOrg: () => org.org,
+    defaultDevHub: () => hub.org,
+    mustNameOrg: !isInside(projectDir, base) ? 'Pass -o <sandbox alias>; this folder is outside the project.'
+      : conflict === 'env' ? 'SF_ and SFDX_ variables name different default orgs. Pass -o <sandbox alias>.'
+        : conflict === 'config' ? 'The new and legacy sf config name different default orgs. Pass -o <sandbox alias>.' : null,
     instanceUrl: (alias) => {
       const r = cachedInstanceUrl(alias, { cache, now, lookup: lookupInstanceUrl });
       if (r.cache !== cache) {
