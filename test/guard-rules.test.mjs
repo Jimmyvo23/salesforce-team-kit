@@ -276,6 +276,8 @@ describe('final fix F-1: the org is found everywhere sf looks', () => {
       blocked(c, /Setting SF_\/SFDX_ variables can change the target org\. Pass -o <sandbox alias> instead/);
     }
     allowed('FOO=1 sf data query -o uat -q x');
+    allowed('export PATH=/opt/bin:$PATH; sf org list');
+    allowed('env PATH=$HOME/bin:$PATH sf data query -o uat -q x');
     allowed('echo $SF_TARGET_ORG');
     allowed('sf data query -o uat -q "SELECT SF_Field__c FROM Account"');
   });
