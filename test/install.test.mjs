@@ -19,8 +19,10 @@ const KIT_FILES = [
   '.claude/agents/qa.md',
   '.claude/agents/reviewer.md',
   '.team/bin/cli/team-status.mjs',
+  '.team/bin/hooks/guard-org.mjs',
   '.team/bin/hooks/record.mjs',
   '.team/bin/lib/events.mjs',
+  '.team/bin/lib/guard.mjs',
   '.team/bin/lib/paths.mjs',
   '.team/bin/lib/team.mjs',
   '.team/bin/team-status.mjs',
@@ -29,7 +31,7 @@ const KIT_FILES = [
   '.team/planner.md',
   '.team/work-order-template.md',
 ];
-const EXECUTABLES = ['.team/bin/cli/team-status.mjs', '.team/bin/hooks/record.mjs', '.team/bin/team-status.mjs'];
+const EXECUTABLES = ['.team/bin/cli/team-status.mjs', '.team/bin/hooks/guard-org.mjs', '.team/bin/hooks/record.mjs', '.team/bin/team-status.mjs'];
 
 let root, target, home;
 /** Environment for spawned children, without any CLAUDE_PROJECT_DIR inherited from the test runner. */
@@ -118,10 +120,10 @@ describe('install', () => {
     const md = read('CLAUDE.md');
     expect(md).toContain('<!-- agent-team-kit:start -->\n## Team');
     expect(md).toContain('<!-- agent-team-kit:end -->');
-    expect(read('.gitignore')).toBe('# agent-team-kit:start\n.team/events*.jsonl\nagent-status.json\n.superpowers/\n.claude/settings.json.bak\n# agent-team-kit:end\n');
+    expect(read('.gitignore')).toBe('# agent-team-kit:start\n.team/events*.jsonl\n.team/org-cache.json\nagent-status.json\n.superpowers/\n.claude/settings.json.bak\n.sf/\n.sfdx/\n# agent-team-kit:end\n');
 
     const settings = JSON.parse(read('.claude/settings.json'));
-    expect(Object.keys(settings.hooks).sort()).toEqual(['PostToolUse', 'Stop', 'SubagentStart', 'SubagentStop']);
+    expect(Object.keys(settings.hooks).sort()).toEqual(['PostToolUse', 'PreToolUse', 'Stop', 'SubagentStart', 'SubagentStop']);
     expect(settings.hooks.SubagentStart[0].hooks[0].command).toBe('node "$CLAUDE_PROJECT_DIR/.team/bin/hooks/record.mjs" agent-start');
     expect(exists('.claude/settings.json.bak')).toBe(false);
 
