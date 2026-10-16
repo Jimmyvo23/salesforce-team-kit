@@ -17,6 +17,11 @@ PDF: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesfor
 - `@TestSetup`, `SeeAllData`, `Test.startTest`/`stopTest`, `System.runAs`, `Assert` class examples: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Testing Apex") (checked 2026-10-16)
 - `@AuraEnabled(cacheable=true)` only for methods that don't change data: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("AuraEnabled Annotation") (checked 2026-10-16)
 
+- System mode and sharing: "if you set the operation to system mode, the sharing keyword on the calling class determines whether the operation respects the user's record-level permissions"; inner classes don't adopt the outer class's sharing mode: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Set an Access Mode for Database Operations", PDF p.223; "Other Implementation Details", PDF p.95) (checked 2026-10-16)
+- `startTest` and `stopTest` may each be called only once per test method: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Using Limits, startTest, and stopTest", PDF p.749) (checked 2026-10-16)
+- Setup objects (User, PermissionSetAssignment and others) can't be mixed with other sObjects in one DML transaction; in tests, wrap them in `System.runAs`: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("sObjects That Cannot Be Used Together in DML Operations", PDF p.167–168; "Mixed DML Operations in Test Methods", PDF p.169) (checked 2026-10-16)
+- Release mapping: API 67.0 is Summer '26 and the Winter '27 guide is v68.0, so the "67.0 and later" defaults apply to both.
+
 ## Checked through search (official pages)
 
 - RecordTypeInfo and `getRecordTypeInfosByDeveloperName()`: https://developer.salesforce.com/docs/atlas.en-us.apexref.meta/apexref/apex_class_Schema_RecordTypeInfo.htm (checked 2026-10-16)

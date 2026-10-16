@@ -6,17 +6,17 @@
     {
       "item": "Uses Batch Apex (Database.Batchable) scheduled with a Schedulable class, not a loop of Queueables or a single transaction",
       "met": true,
-      "evidence": "AccountScoreBatch implements Database.Batchable<SObject>; AccountScoreSchedule implements Schedulable and calls Database.executeBatch(new AccountScoreBatch(), 200)"
+      "evidence": "`AccountScoreBatch implements Database.Batchable<SObject>, Database.Stateful`; `AccountScoreSchedule implements Schedulable` calls `Database.executeBatch(new AccountScoreBatch(), 200)`"
     },
     {
       "item": "Keeps queries and DML bulk inside execute, with no per-record SOQL",
       "met": true,
-      "evidence": "execute loops over scope with no SOQL, collects 'changed', then a single Database.update(changed, false, AccessLevel.SYSTEM_MODE)"
+      "evidence": "The `execute` loop only calls the pure `AccountScoring.score(a)` and collects rows into `changed`. It then makes one `Database.update(changed, false, AccessLevel.SYSTEM_MODE)` call per scope. There is no SOQL in `execute`."
     },
     {
       "item": "Includes a test using Test.startTest() and Test.stopTest() that asserts results",
       "met": true,
-      "evidence": "batchScores200Accounts: Test.startTest(); Database.executeBatch(...); Test.stopTest(); Assert.areEqual(200, [SELECT COUNT() FROM Account WHERE Score__c = 15], ...)"
+      "evidence": "`batchUpdatesScope200` wraps `Database.executeBatch` in `Test.startTest()` and `Test.stopTest()`, then runs `Assert.areEqual(15, a.Score__c, 'Score recalculated')`"
     }
   ]
 }

@@ -7,7 +7,7 @@
 | fields of the current record | `getRecord` from `lightning/uiRecordApi`, or `lightning-record-view-form` / `lightning-record-form` |
 | a related list as the user sees it in the layout | `getRelatedListRecords` from `lightning/uiRelatedListApi` (its `where` filter takes GraphQL-style syntax; check the adapter page) |
 | a filtered, sorted or joined query | `@wire` an Apex method with `@AuraEnabled(cacheable=true)` |
-| to change data | Imperative Apex (not cacheable) or `updateRecord`. Then `refreshApex(this.wiredResult)` or `notifyRecordUpdateAvailable(recordIds)` |
+| to change data | Imperative Apex (not cacheable) or `updateRecord`. Then call `refreshApex(this.wiredCasesResult)`, where `wiredCasesResult` is the provisioned value the `@wire` handler stored (`wiredCases(result) { this.wiredCasesResult = result; … }`). Or call `notifyRecordUpdateAvailable([{ recordId }])` for records that LDS caches. |
 
 Lightning Data Service and UI API enforce the user's sharing and field-level security for you. An Apex controller must do it itself: `with sharing` plus `WITH USER_MODE`.
 
@@ -90,8 +90,8 @@ export default class AccountOpenCases extends LightningElement {
 ```
 
 ```xml
-<!-- lwc/accountOpenCases/accountOpenCases.js-meta.xml ; apiVersion = sourceApiVersion -->
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- lwc/accountOpenCases/accountOpenCases.js-meta.xml ; apiVersion = sourceApiVersion -->
 <LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>SOURCE_API_VERSION</apiVersion>
     <isExposed>true</isExposed>

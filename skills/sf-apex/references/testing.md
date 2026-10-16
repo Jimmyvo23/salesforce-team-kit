@@ -7,6 +7,8 @@
 - Assert **outcomes**: field values, record counts, the stored error, the thrown exception. Coverage alone is not a test.
 - Every trigger or batch path gets a **200-record** test, plus a negative case ("condition not met", for example a non-Email change) and an idempotency case ("already set").
 - `Test.startTest()` gives the code under test fresh limits. `Test.stopTest()` runs async work that was queued after `startTest` (Queueable, Batch, future) synchronously, so assert after `stopTest`.
+- **Call `startTest` and `stopTest` once each per test method** (the Apex Developer Guide allows each only once per method). If a test has two phases (for example, "insert, then update"), put the first phase before `startTest` or in `@TestSetup`, or write two test methods.
+- **Setup objects** (User, PermissionSetAssignment, UserRole, Group and others) can't be inserted in the same transaction as ordinary records such as Account. Doing so throws `MIXED_DML_OPERATION`. In tests, wrap the setup-object DML in `System.runAs(new User(Id = UserInfo.getUserId())) { … }`, or create the users in `@TestSetup`.
 
 ## Test data factory
 
@@ -32,6 +34,9 @@ public class TestDataFactory {
         if (doInsert) { insert rows; }
         return rows;
     }
+    // User and PermissionSetAssignment are setup objects. Inserting them in the same transaction
+    // as Accounts or Contacts throws MIXED_DML_OPERATION, so the inserts run inside System.runAs
+    // as the current user, which test methods allow for mixed DML.
     public static User userWithPermissionSet(String permSetName) {
         Profile p = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
         String unique = String.valueOf(Crypto.getRandomInteger()).remove('-');
@@ -39,9 +44,11 @@ public class TestDataFactory {
             EmailEncodingKey = 'UTF-8', LastName = 'Tester', LanguageLocaleKey = 'en_US',
             LocaleSidKey = 'en_US', ProfileId = p.Id, TimeZoneSidKey = 'America/Los_Angeles',
             UserName = 'tuser' + unique + '@example.com.test');
-        insert u;
         PermissionSet ps = [SELECT Id FROM PermissionSet WHERE Name = :permSetName LIMIT 1];
-        insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = ps.Id);
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            insert u;
+            insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = ps.Id);
+        }
         return u;
     }
 }
@@ -159,7 +166,7 @@ private class OrderErpSyncJobTest {
 ```
 
 - Callouts aren't allowed after uncommitted DML in the same transaction. When the test calls the callout code itself, do the DML first, then `Test.startTest()`, then `Test.setMock`, then the code that makes the callout.
-- When a trigger enqueues the job, do the insert or update between `Test.startTest()` and `Test.stopTest()`, after `Test.setMock`. The job and its callout run when `stopTest()` is reached.
+- When a trigger enqueues the job, do the insert or update between `Test.startTest()` and `Test.stopTest()`, after `Test.setMock`. The callout then runs in the async job when `stopTest()` is reached, not in the same transaction after the DML. So DML inside the block is right there, and the job is collected and run at `stopTest()`.
 - Keep the test volume below the job's per-job chunk size, so the test runs exactly one job. Test the chunk split separately (for example, call `execute` logic with more Ids and assert the remainder).
 - Don't write a test whose result depends on a chained job, and don't state what happens to a chained job inside a test (that it never runs, or that chaining is impossible). The Apex Developer Guide only says chained jobs can be tested with an appropriate stack depth (`AsyncOptions.MaximumQueueableStackDepth`). For more records than one chunk, put a `@TestVisible static Boolean chainRemaining = true;` switch on the job, set it to false in that test, and assert the first chunk only. The reason to give is "keeps the test to one job".
 - `StaticResourceCalloutMock` works when the response body is large.

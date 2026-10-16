@@ -4,7 +4,7 @@
   "pass": true,
   "items": [
     {
-      "item": "Uses @wire (with cacheable=true Apex or LDS/UI API) and the recordId property",
+      "item": "Uses @wire with cacheable=true Apex (or LDS) and the recordId property",
       "met": true,
       "evidence": "@AuraEnabled(cacheable=true) ... @api recordId; @wire(getOpenCases, { accountId: '$recordId' })"
     },
@@ -16,7 +16,7 @@
     {
       "item": "Uses SLDS or base Lightning components, and includes a Jest test",
       "met": true,
-      "evidence": "<lightning-card>, <lightning-datatable>, slds-text-color_error; __tests__/accountOpenCases.test.js"
+      "evidence": "<lightning-card ...>, <lightning-datatable ...>, class=\"slds-text-color_error\"; __tests__/accountOpenCases.test.js with describe('c-account-open-cases'"
     }
   ]
 }

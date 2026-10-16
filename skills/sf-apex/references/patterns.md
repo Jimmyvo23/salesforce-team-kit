@@ -40,7 +40,33 @@ public with sharing class ContactTriggerHandler {
 ```
 
 Notes to give the user:
-- `update as user` fails the Contact save for a user who can't edit the Account, or can't edit `Last_Contact_Date__c`. If the date must be kept for every user, change only that statement to `update as system toUpdate;` and add a comment with the reason. The user decides which.
+- `update as user` fails the Contact save for a user who can't edit the Account, or can't edit `Last_Contact_Date__c`. The user decides whether the date must be kept for every user.
+- `as system` bypasses **object and field permissions only**. Record sharing then follows the class's keyword, so `update as system` in this `with sharing` class still fails on an Account the user can't edit. (Apex Developer Guide: "if you set the operation to system mode, the sharing keyword on the calling class determines whether the operation respects the user's record-level permissions".)
+- If only field permission is the issue, `update as system toUpdate;` is enough. If the user may lack record access too, move the single query and update into a `without sharing` inner class. Inner classes don't take the outer class's sharing mode.
+
+```apex
+public with sharing class ContactTriggerHandler {
+    // ... collect accountIds as above, then:
+    //     new SystemMaintainedFields().stampLastContactDate(accountIds);
+
+    // Last_Contact_Date__c is system-maintained: it must update even when the user saving the
+    // Contact can't see or edit the Account. Only this query and update bypass sharing and FLS.
+    private without sharing class SystemMaintainedFields {
+        public void stampLastContactDate(Set<Id> accountIds) {
+            Date today = Date.today();
+            List<Account> toUpdate = new List<Account>();
+            for (Account a : [SELECT Id, Last_Contact_Date__c FROM Account
+                              WHERE Id IN :accountIds WITH SYSTEM_MODE]) {
+                if (a.Last_Contact_Date__c != today) {
+                    a.Last_Contact_Date__c = today;
+                    toUpdate.add(a);
+                }
+            }
+            update as system toUpdate;
+        }
+    }
+}
+```
 - Updating the Account runs the Account's own triggers, flows and validation rules.
 - If Contact already has a trigger, call the handler from it instead.
 
@@ -98,7 +124,8 @@ public with sharing class OrderTriggerHandler {
 
 ```apex
 public with sharing class OrderErpSyncJob implements Queueable, Database.AllowsCallouts {
-    private static final Integer MAX_PER_JOB = 50;     // stays under 100 callouts and 120 s
+    public static final Integer TIMEOUT_MS = 10000;
+    private static final Integer MAX_PER_JOB = 10;     // 10 x 10 s = 100 s: under the 120 s cumulative callout limit
     private final Set<Id> orderIds;
     public OrderErpSyncJob(Set<Id> orderIds) { this.orderIds = orderIds; }
 
@@ -127,7 +154,7 @@ public with sharing class OrderErpService {
         req.setEndpoint('callout:ERP/api/orders');      // the Named Credential holds the URL and auth
         req.setMethod('POST');
         req.setHeader('Content-Type', 'application/json');
-        req.setTimeout(20000);
+        req.setTimeout(OrderErpSyncJob.TIMEOUT_MS);   // chunk x timeout must stay <= 120 s
         req.setBody(JSON.serialize(new Map<String, Object>{
             'salesforceId' => o.Id, 'orderNumber' => o.OrderNumber,
             'status' => o.Status, 'total' => o.TotalAmount }));

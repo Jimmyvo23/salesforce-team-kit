@@ -25,7 +25,10 @@ Write it explicitly at **every** version, so the code means the same thing after
 - Use `Security.stripInaccessible(AccessType.READABLE, records)` when you'd rather drop fields the user can't see than fail (for example, data returned to a UI).
 - Don't use `WITH SECURITY_ENFORCED`. It is not allowed at 67.0 and later. Use `WITH USER_MODE`.
 - Choose system mode (`WITH SYSTEM_MODE`, `as system`) only on purpose, on that one statement, with a comment saying why, and tell the user.
-- **User-mode DML on another record throws if the user can't edit it**, and the whole save fails. For example, a Contact trigger that updates the Account fails for a user without edit access to that Account. Say so in the answer. Ask whether the field should be maintained for every user. If so, switch that one DML to `as system` with a comment.
+- **System mode bypasses object and field permissions only.** Record sharing then comes from the class's sharing keyword. So `update as system` in a `with sharing` class still fails on a record the user can't edit.
+- **User-mode DML on another record throws if the user can't edit it**, and the whole save fails. For example, a Contact trigger that updates the Account fails for a user without edit access to that Account. Say so in the answer, and ask whether the field should be maintained for every user. If so:
+  - if only field or object permission is missing, `as system` on that one DML is enough;
+  - if record access is missing too, do that single query and update in a small `without sharing` inner class, with a comment giving the reason (pattern in `references/patterns.md`).
 
 ## Triggers: one per object, logic in a handler
 
@@ -66,7 +69,7 @@ private static final Id PARTNER_RT_ID = Schema.SObjectType.Account
 | Callout or extra work after a trigger or save | **Queueable** (`implements Queueable, Database.AllowsCallouts` for callouts). Enqueue **once per transaction**, passing the `Set<Id>`. |
 | Process more records than one transaction can hold (more than about 10,000 rows to update, or millions) | **Batch Apex** (`Database.Batchable<SObject>`). `start` returns `Database.getQueryLocator(...)` (up to 50 million rows), and `execute` works on one scope with bulk DML. |
 | Run at a time (nightly) | A **Schedulable** class whose `execute` only calls `Database.executeBatch(new MyBatch(), 200)`. Keep logic out of the Schedulable. |
-| Simple fire-and-forget without chaining | `@future(callout=true)` works, but a Queueable is preferred: it takes sObject Ids, can be monitored and can chain. |
+| Simple fire-and-forget without chaining | `@future(callout=true)` works, but a Queueable is preferred. It can hold non-primitive members (sObjects, Apex objects), it returns a job Id you can monitor, and it can chain. A future method takes only primitives, such as Ids. |
 
 Limits to design around:
 - 50 `enqueueJob` calls per transaction, and only **1** from an async context.
@@ -80,7 +83,7 @@ Never use a loop of Queueables, or one big transaction, for millions of records.
 
 1. The trigger handler filters the records that need sending and enqueues **one** Queueable with their Ids. Better still, it sets a status field such as `Sync_Status__c = 'Pending'`, and the job picks up the pending records.
 2. The Queueable queries the records, makes the callouts, **and then** does one DML to save the result status, the external Id and the last error on each record.
-3. If there can be more than 100 records, process 100 (or fewer) per job and chain the next job for the rest. Or send them in one bulk request if the API allows it.
+3. Size each job's chunk so that **chunk × timeout ≤ 120 seconds** and the chunk is ≤ 100 callouts. For example, 10 records with a 10-second timeout. Chain the next job for the rest. Or send them in one bulk request if the API allows it.
 4. Handle failure: treat non-2xx responses as failures, store the error, and retry only 5xx errors and timeouts (with a cap). Never fail silently, and never skip the enqueue without recording the records as pending.
 
 Full example with test: `references/patterns.md`.
@@ -91,7 +94,8 @@ Full example with test: `references/patterns.md`.
 - **Bulk test with 200 records** for every trigger or batch path, plus the "condition not met" case and the "already set" case.
 - **Assert with the `Assert` class**: `Assert.areEqual(expected, actual, 'message')`, `Assert.isTrue`, `Assert.isNotNull`, `Assert.fail('Expected exception')`. **Never `System.assertEquals` or `System.assert`** in new code. Assert real field values. A test that only runs the code proves nothing.
 - Wrap the code under test in `Test.startTest()` and `Test.stopTest()`. `stopTest()` runs queued async work (Queueable, Batch, future) synchronously, so assert after it.
-- **Callouts:** use `Test.setMock(HttpCalloutMock.class, mock)` with a success test **and** a failure test (for example a 500 response, asserting the stored error). If the test calls the callout code directly, do the DML before `Test.startTest()`, then call `setMock`. If a trigger enqueues the job, call `setMock`, then do the DML inside the start/stop block. Test with fewer records than one job's chunk. A bigger test switches chaining off with a `@TestVisible` flag. Never assert on a chained job, and never claim what tests do with one (see `references/testing.md`).
+- **One `startTest`/`stopTest` pair per test method.** Each is allowed only once. Put the setup phase before `startTest` or in `@TestSetup`, or split the phases into separate test methods.
+- **Callouts:** use `Test.setMock(HttpCalloutMock.class, mock)` with a success test **and** a failure test (for example a 500 response, asserting the stored error). If the test calls the callout code directly, do the DML before `Test.startTest()`, then call `setMock`. If a trigger enqueues the job, call `setMock`, then do the DML inside the start/stop block. There the callout runs in the async job after `stopTest()`, not after the DML in the same transaction, so DML inside the block is right. Test with fewer records than one job's chunk. A bigger test switches chaining off with a `@TestVisible` flag. Never assert on a chained job, and never claim what tests do with one (see `references/testing.md`).
 - **User mode:** test as a user with only the intended permission set, using `System.runAs(user)`. That is the only way to prove the access checks.
 - Batch: a test runs **one** `execute`, so insert at most 200 records and pass scope 200.
 
