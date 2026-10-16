@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { mentionsSf } from '../hooks/guard-org.mjs';
 
 const HOOK = fileURLToPath(new URL('../hooks/guard-org.mjs', import.meta.url));
 let root;
@@ -96,12 +97,45 @@ test('main session blocks are attributed to planner', () => {
   expect(events()[0]).toMatchObject({ agent: 'planner', reason: expect.stringMatching(/access token/) });
 });
 
-test('non-Bash tools, bad input and a missing project dir are allowed', () => {
-  expect(runHook({ tool_name: 'Edit', tool_input: { file_path: 'x' } }).status).toBe(0);
-  const bad = spawnSync(process.execPath, [HOOK], { input: 'not json', encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: project } });
-  expect(bad.status).toBe(0);
-  const noDir = spawnSync(process.execPath, [HOOK], { input: JSON.stringify(bash('sf data query -o prod -q x')), encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: '' } });
-  expect(noDir.status).toBe(0);
+const quiet = (r, status) => {
+  expect(r.status).toBe(status);
+  expect(r.stdout).toBe('');
+};
+const rawRun = (input, env) => spawnSync(process.execPath, [HOOK], { input, encoding: 'utf8', env: { ...process.env, HOME: home, ...env } });
+
+test('non-Bash tools, and bad input without sf, are allowed silently', () => {
+  const r = runHook({ tool_name: 'Edit', tool_input: { file_path: 'x' } });
+  quiet(r, 0);
+  expect(r.stderr).toBe('');
+  const bad = rawRun('not json', { CLAUDE_PROJECT_DIR: project });
+  quiet(bad, 0);
+  expect(bad.stderr).toBe('');
+});
+
+test('malformed input that mentions sf is blocked', () => {
+  const r = rawRun('sf data query -o prod {', { CLAUDE_PROJECT_DIR: project });
+  quiet(r, 2);
+  expect(r.stderr).toBe('Blocked by the org guard: The org guard could not read this command, so it is blocked.\n');
+});
+
+test('no project dir: sf commands are blocked, others allowed silently', () => {
+  const r = rawRun(JSON.stringify(bash('sf data query -o prod -q x')), { CLAUDE_PROJECT_DIR: '' });
+  quiet(r, 2);
+  expect(r.stderr).toBe("Blocked by the org guard: The org guard can't find the project folder, so sf commands are blocked.\n");
+  const ok = rawRun(JSON.stringify(bash('git status')), { CLAUDE_PROJECT_DIR: '' });
+  quiet(ok, 0);
+  expect(ok.stderr).toBe('');
+});
+
+test('falls back to the input cwd when CLAUDE_PROJECT_DIR is empty', () => {
+  const r = rawRun(JSON.stringify(bash('sf data query -o prod -q x', { cwd: project })), { CLAUDE_PROJECT_DIR: '' });
+  quiet(r, 2);
+  expect(r.stderr).toMatch(/"prod" is not listed/);
+});
+
+test('mentionsSf spots the Salesforce CLI', () => {
+  for (const t of ['SF data query', 'sfdx force:x', 'npx @salesforce/cli data query']) expect(mentionsSf(t)).toBe(true);
+  for (const t of ['git status', 'salesforce docs']) expect(mentionsSf(t)).toBe(false);
 });
 
 test('a broken team.json blocks sf org commands only', () => {

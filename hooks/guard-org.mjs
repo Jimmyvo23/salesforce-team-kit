@@ -29,7 +29,7 @@ function readOrNull(file) {
 
 /** @param {string} alias @returns {string | null} */
 function lookupInstanceUrl(alias) {
-  const r = spawnSync('sf', ['org', 'display', '-o', alias, '--json'], { encoding: 'utf8', timeout: 30_000 });
+  const r = spawnSync('sf', ['org', 'display', '-o', alias, '--json'], { encoding: 'utf8', timeout: 10_000 });
   if (r.status !== 0 || typeof r.stdout !== 'string') return null;
   try {
     const url = JSON.parse(r.stdout)?.result?.instanceUrl;
@@ -87,32 +87,46 @@ function readStdin() {
   });
 }
 
+/** @param {string} text @returns {boolean} true when the text looks like it runs the Salesforce CLI */
+export function mentionsSf(text) {
+  return /\bsf(dx)?\b|@salesforce\/cli/i.test(text);
+}
+
 /** @returns {Promise<number>} exit code */
 async function run() {
   const raw = await readStdin();
   /** @type {any} */
-  let input;
+  let input = null;
+  /** @type {import('../lib/guard.mjs').Decision} */
+  let d;
+  let command = '';
   try {
     input = JSON.parse(raw);
   } catch {
-    return 0;
+    if (!mentionsSf(raw)) return 0;
+    d = { allow: false, reason: 'The org guard could not read this command, so it is blocked.' };
   }
-  const projectDir = process.env.CLAUDE_PROJECT_DIR;
-  if (!projectDir) return 0;
-  const command = String(input?.tool_input?.command ?? '');
-  /** @type {import('../lib/guard.mjs').Decision} */
-  let d;
-  try {
-    d = guard(input, { projectDir, homeDir: os.homedir(), now: new Date() });
-  } catch (e) {
-    if (!/\bsf(dx)?\b/i.test(command)) return 0;
-    d = { allow: false, reason: `The org guard failed (${e instanceof Error ? e.message : String(e)}), so this sf command is blocked.` };
+  command = String(input?.tool_input?.command ?? '');
+  const cwd = typeof input?.cwd === 'string' ? input.cwd : '';
+  const projectDir = process.env.CLAUDE_PROJECT_DIR || cwd || '';
+  if (!d) {
+    if (!projectDir) {
+      if (!mentionsSf(command)) return 0;
+      d = { allow: false, reason: "The org guard can't find the project folder, so sf commands are blocked." };
+    } else {
+      try {
+        d = guard(input, { projectDir, homeDir: os.homedir(), now: new Date() });
+      } catch (e) {
+        if (!mentionsSf(command)) return 0;
+        d = { allow: false, reason: `The org guard failed (${e instanceof Error ? e.message : String(e)}), so this sf command is blocked.` };
+      }
+    }
   }
   if (d.allow) return 0;
   process.stderr.write(`Blocked by the org guard: ${d.reason}\n`);
   try {
-    if (fs.statSync(path.join(projectDir, '.team'), { throwIfNoEntry: false })?.isDirectory()) {
-      const type = typeof input.agent_type === 'string' ? input.agent_type.trim().toLowerCase() : '';
+    if (projectDir && fs.statSync(path.join(projectDir, '.team'), { throwIfNoEntry: false })?.isDirectory()) {
+      const type = typeof input?.agent_type === 'string' ? input.agent_type.trim().toLowerCase() : '';
       appendEvent(logPath(projectDir), {
         type: 'guard_blocked', agent: type || 'planner', command: describeBash(command) || 'a command', reason: d.reason, source: 'hook',
       });
@@ -136,5 +150,5 @@ function isMain() {
 }
 
 if (isMain()) {
-  run().then((code) => process.exit(code), () => process.exit(0));
+  run().then((code) => process.exit(code), () => process.exit(2));
 }
