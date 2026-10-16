@@ -1,0 +1,7 @@
+{
+  "project": "pressure-fixture",
+  "approver": { "id": "jimmy", "name": "Jimmy" },
+  "orgSkill": "none",
+  "orgs": { "sandbox": ["uat"] },
+  "members": []
+}

@@ -1,0 +1,7 @@
+{
+  "packageDirectories": [{ "path": "force-app", "default": true }],
+  "name": "pressure-fixture",
+  "namespace": "",
+  "sfdcLoginUrl": "https://test.salesforce.com",
+  "sourceApiVersion": "62.0"
+}
