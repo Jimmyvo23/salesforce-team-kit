@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 // @ts-check
-// agent-team-kit installer.
+// salesforce-team-kit installer.
 // Usage: node install.mjs --target <project> [--uninstall] [--yes]
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { checkPrereqs } from './lib/install/checks.mjs';
+import { spawnSync } from 'node:child_process';
+import { checkPrereqs, isGitRepo, findSkill } from './lib/install/checks.mjs';
 import { planInstall, planUninstall, applyChanges } from './lib/install/plan.mjs';
+import { loadTeam } from './lib/team.mjs';
 
 const KIT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const USAGE = 'Usage: node install.mjs --target <project> [--uninstall] [--yes]';
@@ -97,7 +99,7 @@ const isYes = (answer) => /^\s*y(es)?\s*$/i.test(answer);
 
 /**
  * @param {string[]} argv arguments after the script name
- * @param {{ cwd: string, homeDir: string, nodeVersion: string, stdout: (s: string) => void, stderr: (s: string) => void, ask: (question: string) => Promise<string> }} io
+ * @param {{ cwd: string, homeDir: string, nodeVersion: string, stdout: (s: string) => void, stderr: (s: string) => void, ask: (question: string) => Promise<string>, hasCommand: (cmd: string, args: string[]) => boolean, gitInit: (dir: string) => boolean }} io
  * @returns {Promise<number>} exit code
  */
 export async function main(argv, io) {
@@ -118,13 +120,27 @@ export async function main(argv, io) {
   if (!values.target) return fail(`Missing --target. ${USAGE}`);
   const targetDir = path.resolve(io.cwd, values.target);
   const uninstall = values.uninstall === true;
+  const warnOrgSkill = () => {
+    if (uninstall) return;
+    const team = loadTeam(path.join(targetDir, '.team', 'team.json'));
+    if (team.ok && team.team.orgSkill && !findSkill({ name: team.team.orgSkill, targetDir, homeDir: io.homeDir })) {
+      out(`Warning: the org knowledge skill "${team.team.orgSkill}" was not found in the project, its parent folders or ~/.claude/skills. Agents work without org knowledge until it exists. Set "orgSkill" in .team/team.json to your skill's name.`);
+    }
+  };
 
   if (!uninstall) {
-    const problems = checkPrereqs({ targetDir, nodeVersion: io.nodeVersion, homeDir: io.homeDir });
+    const problems = checkPrereqs({ targetDir, nodeVersion: io.nodeVersion, homeDir: io.homeDir, hasCommand: io.hasCommand });
     if (problems.length > 0) {
       return fail(`Cannot install yet:\n${problems.map((p) => `- ${p}`).join('\n')}`);
     }
-    out('Checks passed: Node, Git repository, Superpowers and frontend-design plugins.');
+    if (!fs.existsSync(targetDir)) return fail(`${targetDir} does not exist.`);
+    if (!isGitRepo(targetDir)) {
+      const yes = values.yes || isYes(await io.ask(`${targetDir} is not a Git repository. Run "git init" there now? (y/n)`));
+      if (!yes) return fail('The team needs a Git repository. Run "git init" in the project, then re-run.');
+      if (!io.gitInit(targetDir)) return fail(`"git init" failed in ${targetDir}. Run it yourself, then re-run.`);
+      out(`Ran git init in ${targetDir}.`);
+    }
+    out('Checks passed: Node, Git repository, Superpowers plugin, Salesforce CLI and Code Analyzer.');
   } else if (!fs.existsSync(targetDir)) {
     return fail(`${targetDir} does not exist.`);
   }
@@ -140,6 +156,7 @@ export async function main(argv, io) {
   const unchanged = changes.length - pending.length;
   if (pending.length === 0) {
     out(`Nothing to do in ${targetDir}; everything is up to date.`);
+    warnOrgSkill();
     return 0;
   }
   out(`${uninstall ? 'Uninstall' : 'Install'} into ${targetDir}:`);
@@ -179,6 +196,7 @@ export async function main(argv, io) {
 
   applyChanges(changes, { targetDir, resolveConflict: (c) => decisions.get(c.path) === true });
   out(uninstall ? 'Uninstalled. team.json and handoffs were kept.' : 'Installed.');
+  warnOrgSkill();
   if (uninstall && fs.existsSync(path.join(targetDir, '.team'))) {
     const logs = fs.readdirSync(path.join(targetDir, '.team'), { withFileTypes: true })
       .filter((e) => e.isFile() && /^events.*\.jsonl$/.test(e.name)).map((e) => `.team/${e.name}`);
@@ -227,6 +245,8 @@ if (isMain()) {
     stdout: (s) => process.stdout.write(s),
     stderr: (s) => process.stderr.write(s),
     ask,
+    hasCommand: (cmd, args) => spawnSync(cmd, args, { stdio: 'ignore', timeout: 60_000 }).status === 0,
+    gitInit: (dir) => spawnSync('git', ['init', '-q'], { cwd: dir, stdio: 'ignore' }).status === 0,
   });
   process.exit(code);
 }

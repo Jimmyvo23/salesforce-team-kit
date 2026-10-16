@@ -49,7 +49,6 @@ beforeEach(() => {
   const git = spawnSync('git', ['init', '-q'], { cwd: target, encoding: 'utf8' });
   expect(git.status).toBe(0);
   fs.mkdirSync(path.join(home, '.claude', 'plugins', 'cache', 'superpowers-marketplace', 'superpowers'), { recursive: true });
-  fs.mkdirSync(path.join(home, '.claude', 'plugins', 'cache', 'claude-plugins-official', 'frontend-design'), { recursive: true });
 });
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -82,7 +81,7 @@ function snapshot(dir = target) {
 /**
  * Run the installer CLI in-process.
  * @param {string[]} args
- * @param {{ answers?: string[], cwd?: string, homeDir?: string }} [o]
+ * @param {{ answers?: string[], cwd?: string, homeDir?: string, hasCommand?: (c: string, a: string[]) => boolean }} [o]
  */
 async function cli(args, o = {}) {
   const answers = [...(o.answers ?? [])];
@@ -93,6 +92,8 @@ async function cli(args, o = {}) {
     cwd: o.cwd ?? root,
     homeDir: o.homeDir ?? home,
     nodeVersion: 'v24.1.0',
+    hasCommand: o.hasCommand ?? (() => true),
+    gitInit: (dir) => spawnSync('git', ['init', '-q'], { cwd: dir }).status === 0,
     stdout: (s) => { out += s; },
     stderr: (s) => { err += s; },
     ask: async (q) => {
@@ -715,5 +716,50 @@ describe('formatDiff', () => {
     expect(out).toHaveLength(40);
     expect(out.at(-1)).toBe('... 161 more lines');
     expect(out.slice(0, 39).every((l) => /^[-+]/.test(l))).toBe(true);
+  });
+});
+
+describe('salesforce install checks', () => {
+  test('a missing sf CLI stops the install and changes nothing', async () => {
+    const before = snapshot();
+    const r = await cli(['--target', target, '--yes'], { hasCommand: () => false });
+    expect(r.code).toBe(1);
+    expect(r.err).toMatch(/Salesforce CLI/);
+    expect(snapshot()).toEqual(before);
+  });
+
+  test('offers git init: n stops, y runs it and installs', async () => {
+    fs.rmSync(p('.git'), { recursive: true });
+    const no = await cli(['--target', target], { answers: ['n'] });
+    expect(no.code).toBe(1);
+    expect(no.questions[0]).toMatch(/not a Git repository. Run "git init"/);
+    expect(exists('.git')).toBe(false);
+    const yes = await cli(['--target', target], { answers: ['y', 'y'] });
+    expect(yes.code).toBe(0);
+    expect(exists('.git')).toBe(true);
+    expect(yes.out).toMatch(/Ran git init/);
+    expect(exists('.claude/agents/admin.md')).toBe(true);
+  });
+
+  test('--yes runs git init without asking', async () => {
+    fs.rmSync(p('.git'), { recursive: true });
+    const r = await install();
+    expect(r.code).toBe(0);
+    expect(r.questions).toEqual([]);
+    expect(exists('.git')).toBe(true);
+  });
+
+  test('warns when the org knowledge skill is not found, and not when it is', async () => {
+    const r = await install();
+    expect(r.out).toMatch(/org knowledge skill "my-org-knowledge" was not found/);
+    fs.mkdirSync(path.join(home, '.claude', 'skills', 'my-org-knowledge'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.claude', 'skills', 'my-org-knowledge', 'SKILL.md'), '---\nname: my-org-knowledge\n---\n');
+    const again = await install();
+    expect(again.out).not.toMatch(/was not found/);
+  });
+
+  test('the checks line names the Salesforce tools', async () => {
+    const r = await install();
+    expect(r.out).toMatch(/Checks passed: Node, Git repository, Superpowers plugin, Salesforce CLI and Code Analyzer\./);
   });
 });
