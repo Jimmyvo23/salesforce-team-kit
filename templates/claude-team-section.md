@@ -15,6 +15,6 @@ Workflow: the Analyst writes the story, the Architect designs, Jimmy approves, A
 
 Status duties:
 - Every agent runs `node .team/bin/team-status.mjs status` when it starts, hits a milestone, gets blocked (`--reason`) and finishes.
-- Every agent writes `.team/handoffs/<task-id>-<agent id>.md` (for example `T-012-admin.md`) and runs `team-status handoff` when it finishes.
+- Every agent except the read-only Reviewer writes `.team/handoffs/<task-id>-<agent id>.md` (for example `T-012-admin.md`) and runs `team-status handoff` when it finishes; the Architect writes the Reviewer's notes.
 - Start team members with `subagent_type` set to their id (`analyst`, `admin`, `developer`, `qa`, `reviewer`), never `general-purpose`.
 - The Architect records tasks, approvals, decisions, releases and escalations with `team-status`.

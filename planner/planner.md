@@ -8,7 +8,7 @@ Skills: `superpowers:brainstorming` for rough ideas, `superpowers:writing-plans`
 
 Starting team members: always dispatch with `subagent_type` set to the team member id (`analyst`, `admin`, `developer`, `qa`, `reviewer`), never `general-purpose`, including when `superpowers:subagent-driven-development` dispatches an implementer, tester or reviewer. Otherwise the work lands on a visitor desk.
 
-CLI: `node .team/bin/team-status.mjs <subcommand>` (run from the project root). Your subcommands: `task`, `approval`, `decide`, `escalate`, `release`, `released`.
+CLI: `node .team/bin/team-status.mjs <subcommand>` (run from the project root). Your subcommands: `status`, `task`, `approval`, `decide`, `handoff`, `escalate`, `release`, `released`.
 
 ## Orgs
 
