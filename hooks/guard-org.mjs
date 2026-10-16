@@ -83,7 +83,7 @@ function lookupInstanceUrl(alias) {
 export function guard(input, { projectDir, homeDir, now, env = process.env }) {
   if (!input || typeof input !== 'object' || input.tool_name !== 'Bash') return { allow: true };
   if (!kit) throw new Error(`the guard's files did not load: ${loadError}`);
-  const { decide, resolveDefaultOrg, cachedInstanceUrl, findSfdxProject, aliasUsername } = kit.guardLib;
+  const { decide, resolveDefaultOrg, cachedInstanceUrl, findSfdxProject, aliasUsername, globPaths } = kit.guardLib;
   const command = typeof input.tool_input?.command === 'string' ? input.tool_input.command : '';
   // sf resolves the project config and relative paths from the folder the command runs in.
   const base = typeof input.cwd === 'string' && input.cwd ? path.resolve(projectDir, input.cwd) : projectDir;
@@ -123,6 +123,7 @@ export function guard(input, { projectDir, homeDir, now, env = process.env }) {
       }
       return r.url;
     },
+    expandGlob: (pattern) => globPaths(pattern, { cwd: base, homeDir }),
     readScript: (file) => readOrNull(path.resolve(base, file === '~' || file.startsWith('~/') ? path.join(homeDir, file.slice(1)) : file)),
   });
 }
