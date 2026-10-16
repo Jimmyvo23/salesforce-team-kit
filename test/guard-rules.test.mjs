@@ -39,7 +39,7 @@ describe('decide', () => {
   });
 
   test('org-free sf commands pass without a target', () => {
-    for (const c of ['sf --version', 'sf help', 'sf project deploy start --help', 'sf config set target-org=prod',
+    for (const c of ['sf --version', 'sf help', 'sf project deploy start --help', 'sf config set org-api-version=62.0',
       'sf alias list', 'sf project generate manifest --source-dir force-app', 'sf code-analyzer run --target force-app',
       'sf org list', 'sf apex generate class --name Foo']) allowed(c, ctx({ defaultOrg: () => null }));
   });
@@ -145,8 +145,8 @@ describe('decide', () => {
 });
 
 describe('checkSf', () => {
-  test('help anywhere means no org is touched', () => {
-    expect(checkSf(['project', 'deploy', 'start', '-o', 'prod', '--help'], ctx())).toEqual({ allow: true });
+  test('help alone means no org is touched', () => {
+    expect(checkSf(['project', 'deploy', 'start', '--help'], ctx())).toEqual({ allow: true });
   });
 });
 
@@ -183,5 +183,65 @@ describe('cachedInstanceUrl', () => {
   test('a failed lookup returns null and leaves the cache alone', () => {
     const cache = {};
     expect(cachedInstanceUrl('x', { cache, now, lookup: () => null })).toEqual({ url: null, cache });
+  });
+});
+
+describe('fix round 1 (Ruling T7-c)', () => {
+  test('attached org flag values name an org', () => {
+    blocked('sf data query -oprod -q x', /"prod"/);
+    blocked('sf data query -o"prod" -q x', /"prod"/);
+    blocked("sf data query -o'prod' -q x", /"prod"/);
+    blocked('sf org create scratch -vprod -f c.json', /"prod"/);
+    blocked('sf data query -o=prod -q x', /"prod"/);
+    allowed('sf data query -ouat -q x');
+  });
+
+  test('arguments computed at run time are blocked', () => {
+    for (const c of ['sf data query $(echo -o prod)', 'sf data query $ARGS', 'sf $ARGS', 'sf data query "$@"',
+      'sf data query `cat flags`', 'sf data query -o uat $ARGS']) blocked(c, /at run time/);
+  });
+
+  test('default org and alias changes are blocked', () => {
+    blocked('sf config set target-org=prod && sf data query -q x', /Changing the default org/);
+    blocked('sf config set target-org prod --global', /Changing the default org/);
+    blocked('sf config unset target-org', /Changing the default org/);
+    blocked('sf alias set uat=prod-user; sf data query -o uat -q x', /manages org aliases/);
+    allowed('sf config set org-api-version=62.0');
+    allowed('sf config list');
+    allowed('sf alias list');
+  });
+
+  test('other launchers of the same CLI are blocked', () => {
+    blocked('npx --yes @salesforce/cli data query -o prod', /./);
+    blocked('node /usr/local/lib/node_modules/@salesforce/cli/bin/run.js data query -o prod', /./);
+    blocked('sf.cmd data query -o prod -q x', /"prod"/);
+    blocked('s${x}f data query -o prod', /./);
+  });
+
+  test('legacy and alias topics are blocked', () => {
+    blocked('sf force:org:display -o uat', /access token/);
+    blocked('sf deploy metadata quick --job-id 0Af -o uat', /Jimmy deploys/);
+    blocked('sf force:auth:web:login', /Jimmy authorises/);
+    blocked('sf auth web login', /Jimmy authorises/);
+    blocked('sf login org', /Jimmy authorises/);
+  });
+
+  test('help counts only when it is the whole request', () => {
+    blocked('sf data query -o prod -q "--help"', /"prod"/);
+    blocked('sf data query -o prod -- --help', /"prod"/);
+    blocked('sf data query -q -h -o prod', /"prod"/);
+    allowed('sf project deploy start --help');
+    allowed('sf help');
+  });
+
+  test('a cache entry from the future is not trusted', () => {
+    const now = new Date('2026-10-15T12:00:00Z');
+    const cache = { uat: { url: 'stale', at: new Date(now.getTime() + 3600000).toISOString() } };
+    const r = cachedInstanceUrl('uat', { cache, now, lookup: () => URLS.uat });
+    expect(r.url).toBe(URLS.uat);
+  });
+
+  test('script check is case-insensitive', () => {
+    blocked('./x.sh', /runs sf commands/, ctx({ readScript: () => '\n  SF org list -o prod\n' }));
   });
 });
