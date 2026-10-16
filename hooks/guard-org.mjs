@@ -141,6 +141,22 @@ export function mentionsSf(text) {
   return /\bsf(dx)?\b|@salesforce\/cli/i.test(text);
 }
 
+/**
+ * The fallback test for blocking when the guard can't decide: mentionsSf on the raw text and on
+ * the text without quotes and backslashes (s''f, s\f), plus the guard's own word rules when they
+ * loaded. If those rules throw, the answer is yes.
+ * @param {string} text
+ * @returns {boolean}
+ */
+export function looksLikeSf(text) {
+  if (mentionsSf(text) || mentionsSf(text.replace(/['"\\]/g, ''))) return true;
+  try {
+    return kit ? kit.guardLib.mentionsSfWords(text) : false;
+  } catch {
+    return true;
+  }
+}
+
 /** @returns {Promise<number>} exit code */
 async function run() {
   const raw = await readStdin();
@@ -152,25 +168,25 @@ async function run() {
   try {
     input = JSON.parse(raw);
   } catch {
-    if (!mentionsSf(raw)) return 0;
+    if (!looksLikeSf(raw)) return 0;
     d = { allow: false, reason: 'The org guard could not read this command, so it is blocked.' };
   }
   command = String(input?.tool_input?.command ?? '');
   if (!d && !kit) {
-    if (input?.tool_name !== 'Bash' || !mentionsSf(command)) return 0;
+    if (input?.tool_name !== 'Bash' || !looksLikeSf(command)) return 0;
     d = { allow: false, reason: `The org guard could not load its files (${loadError}), so sf commands are blocked. Re-run the kit installer.` };
   }
   const cwd = typeof input?.cwd === 'string' ? input.cwd : '';
   const projectDir = process.env.CLAUDE_PROJECT_DIR || cwd || '';
   if (!d) {
     if (!projectDir) {
-      if (!mentionsSf(command)) return 0;
+      if (!looksLikeSf(command)) return 0;
       d = { allow: false, reason: "The org guard can't find the project folder, so sf commands are blocked." };
     } else {
       try {
         d = guard(input, { projectDir, homeDir: os.homedir(), now: new Date() });
       } catch (e) {
-        if (!mentionsSf(command)) return 0;
+        if (!looksLikeSf(command)) return 0;
         d = { allow: false, reason: `The org guard failed (${e instanceof Error ? e.message : String(e)}), so this sf command is blocked.` };
       }
     }

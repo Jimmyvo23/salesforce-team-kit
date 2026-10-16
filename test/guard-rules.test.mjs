@@ -453,3 +453,69 @@ describe('round 2 G-5: clearing the environment', () => {
     allowed('XDG_CONFIG_HOME=/tmp/h npm test');
   });
 });
+
+describe('round 3 H-1: grouped short flags', () => {
+  const GROUPED = /Write -o <sandbox alias> as its own flag; the guard can't read grouped short flags\./;
+  test('an org char inside a short flag group is blocked', () => {
+    for (const c of ['sf data query -to prod -q x', 'sf project deploy start -co prod -d force-app', 'sf project deploy start -coprod',
+      'sf project deploy start -co=prod', 'sf data query -tu prod -q x', 'sf org create scratch -dv prod -f c.json',
+      'sf project deploy pipeline start -ac prod -p P -b main', 'sf package bundle install -b x -o uat -wd prod']) blocked(c, GROUPED);
+  });
+  test('separate short flags and an attached value after an org char still work', () => {
+    allowed('sf data query -o uat -t -q x');
+    allowed('sf project deploy start -c -o uat');
+    allowed('sf data query -ouat -q x');
+    blocked('sf data query -oprod -q x', /"prod" is not listed/);
+    allowed('sf apex run test -o uat -w 20 -l RunLocalTests');
+  });
+});
+
+describe('round 3 H-2: an sf command packed into one word', () => {
+  test('sf commands inside a single word count for the backstop', () => {
+    for (const c of ["arch -x86_64 sh -c 's''f data query -q x -o prod'", 'env -S "s""f data query -q x -o prod"',
+      "printf 's''f data query -q x -o prod' | xargs -0 sh -c", "arch zsh -c 'npx @salesforce/cli data query -o prod'"]) {
+      blocked(c, /could not find every sf command/);
+    }
+    for (const c of ['bash -c "sf org list"', 'eval "sf org list"', 'sudo -u root bash -c "sf data query -o uat -q x"', 'git status']) allowed(c);
+  });
+});
+
+describe('round 3 H-3: JIT plugin commands', () => {
+  test('the DevOps Center org flag names an org', () => {
+    for (const c of ['sf project deploy pipeline start -c prod -p P -b main', 'sf project deploy pipeline start -cprod -p P -b main',
+      'sf project deploy pipeline validate --devops-center-username prod -p P -b main', 'sf project deploy pipeline report --devops-center-username=prod -i 0Af',
+      'sf org create snapshot --sourceorg prod -n x', 'sf org create snapshot --sourceorg=prod -n x']) blocked(c, /"prod" is not listed/);
+    allowed('sf project deploy pipeline start -c uat -p P -b main');
+  });
+  test('pipeline quick deploys are forbidden', () => {
+    blocked('sf project deploy pipeline quick -c uat -i 0Af', /Jimmy deploys to production himself/);
+  });
+  test('org create snapshot also checks the default Dev Hub when no hub flag is given', () => {
+    const c = ctx({ defaultDevHub: () => 'prod-hub' });
+    blocked('sf org create snapshot -o uat -n x', /default Dev Hub "prod-hub"/, c);
+    blocked('sf force:org:snapshot:create -o uat -n x', /default Dev Hub "prod-hub"/, c);
+    allowed('sf org create snapshot -o uat -v dev -n x', c);
+    allowed('sf org create snapshot -o uat -n x', ctx({ defaultDevHub: () => 'dev' }));
+    allowed('sf data query -o uat -q x', c);
+  });
+  test('--org-type is a known non-org flag', () => {
+    allowed('sf devops stage environment add -o uat --org-type Sandbox -n x');
+  });
+});
+
+describe('round 3 H-4: both key names in both files', () => {
+  const files = (map) => (f) => map[f] ?? null;
+  const r = (map, o = {}) => resolveDefaultOrg({ projectDir: '/p', homeDir: '/h', readFile: files(map), ...o });
+  test('a new-style key in the legacy file counts', () => {
+    expect(r({ '/p/.sfdx/sfdx-config.json': '{"target-org":"prod"}', '/h/.sf/config.json': '{"target-org":"uat"}' })).toEqual({ org: 'prod', conflict: null });
+    expect(r({ '/p/.sf/config.json': '{"target-org":"uat"}', '/p/.sfdx/sfdx-config.json': '{"target-org":"prod"}' })).toEqual({ org: null, conflict: 'config' });
+    expect(r({ '/p/.sf/config.json': '{"defaultusername":"prod"}' })).toEqual({ org: 'prod', conflict: null });
+    expect(r({ '/p/.sfdx/sfdx-config.json': '{"target-dev-hub":"hub"}' }, { hub: true })).toEqual({ org: 'hub', conflict: null });
+    expect(r({ '/p/.sf/config.json': '{"target-org":"uat","defaultusername":"prod"}' })).toEqual({ org: null, conflict: 'config' });
+  });
+  test('SF_DEFAULTUSERNAME and SF_DEFAULTDEVHUBUSERNAME count', () => {
+    expect(r({}, { env: { SF_DEFAULTUSERNAME: 'prod' } })).toEqual({ org: 'prod', conflict: null });
+    expect(r({}, { env: { SF_TARGET_ORG: 'uat', SF_DEFAULTUSERNAME: 'prod' } })).toEqual({ org: null, conflict: 'env' });
+    expect(r({}, { env: { SF_DEFAULTDEVHUBUSERNAME: 'hub' }, hub: true })).toEqual({ org: 'hub', conflict: null });
+  });
+});

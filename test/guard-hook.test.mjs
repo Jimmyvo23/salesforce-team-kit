@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { mentionsSf, finish } from '../hooks/guard-org.mjs';
+import { mentionsSf, finish, looksLikeSf } from '../hooks/guard-org.mjs';
 
 const HOOK = fileURLToPath(new URL('../hooks/guard-org.mjs', import.meta.url));
 let root;
@@ -261,4 +261,22 @@ describe('round 2 G-1: the hook blocks a default org the new and legacy config d
     expect(r.status).toBe(2);
     expect(r.stderr).toMatch(/SF_ and SFDX_ variables name different default orgs\. Pass -o <sandbox alias>\./);
   });
+});
+
+test('round 3 H-4: a new-style key in the legacy project file is the default', () => {
+  fs.writeFileSync(path.join(project, 'sfdx-project.json'), '{}');
+  fs.mkdirSync(path.join(project, '.sfdx'));
+  fs.writeFileSync(path.join(project, '.sfdx', 'sfdx-config.json'), '{"target-org":"prod"}');
+  fs.mkdirSync(path.join(home, '.sf'));
+  fs.writeFileSync(path.join(home, '.sf', 'config.json'), '{"target-org":"uat"}');
+  const r = runHook(bash('sf data query -q x'));
+  expect(r.status).toBe(2);
+  expect(r.stderr).toMatch(/"prod" is not listed/);
+});
+
+test('round 3 H-5: the crash fallback spots obfuscated sf lines', async () => {
+  for (const t of ['arch s\\f data query -o prod', "arch -x86_64 sh -c 's''f data query -q x -o prod'", 'env -S "s""f data query"', 'sf data query -o x']) {
+    expect(await looksLikeSf(t), t).toBe(true);
+  }
+  for (const t of ['git status', 'echo salesforce']) expect(await looksLikeSf(t), t).toBe(false);
 });
