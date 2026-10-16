@@ -24,6 +24,7 @@ const KIT_FILES = [
   '.team/bin/lib/events.mjs',
   '.team/bin/lib/guard.mjs',
   '.team/bin/lib/paths.mjs',
+  '.team/bin/lib/sf-commands.mjs',
   '.team/bin/lib/team.mjs',
   '.team/bin/team-status.mjs',
   '.team/changeset-template.md',

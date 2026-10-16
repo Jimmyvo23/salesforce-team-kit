@@ -1,5 +1,8 @@
 import { describe, test, expect } from 'vitest';
-import { decide, checkSf, isSandboxUrl, readDefaultOrg, resolveDefaultOrg, cachedInstanceUrl, CACHE_TTL_MS, findSfdxProject, aliasUsername } from '../lib/guard.mjs';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { decide, checkSf, isSandboxUrl, readDefaultOrg, resolveDefaultOrg, cachedInstanceUrl, CACHE_TTL_MS, findSfdxProject, aliasUsername, globPaths } from '../lib/guard.mjs';
 
 const URLS = {
   uat: 'https://acme--uat.sandbox.my.salesforce.com',
@@ -573,10 +576,12 @@ describe('round 4 J-2: shell patterns in words', () => {
       blocked(c, /hides the command from the guard/);
     }
   });
-  test('a pattern that could expand to sf counts for the backstop', () => {
-    for (const c of ['arch /usr/local/bin/s? data query -o prod', 'arch /usr/local/bin/s[f] data query -o prod', 'arch {s,x}f data query -o prod',
+  test('a pattern that expands to sf counts for the backstop', () => {
+    // Round 5 K-1: argument patterns are expanded for real; this expander models a folder holding sf.
+    const c = ctx({ expandGlob: (w) => [w.replace(/[^/]*$/, 'sf')] });
+    for (const s of ['arch /usr/local/bin/s? data query -o prod', 'arch /usr/local/bin/s[f] data query -o prod', 'arch {s,x}f data query -o prod',
       'arch /usr/local/bin/s{f,x} data query -o prod', 'arch /usr/local/bin/s(f) data query -o prod', 'arch =sf data query -o prod',
-      'screen -dm ./bin/sf* data query -o prod', 'arch s{f..g} data query -o prod']) blocked(c, /could not find every sf command/);
+      'screen -dm ./bin/sf* data query -o prod', 'arch s{f..g} data query -o prod']) blocked(s, /could not find every sf command/, c);
   });
   test('test brackets, quoted patterns and patterns that cannot be sf pass', () => {
     for (const c of ['[ -f x ] && echo y', '[[ -f x ]] && echo y', "find . -name '*'", 'ls test/*.test.mjs', 'echo "s?"', 'echo s\\?',
@@ -670,17 +675,96 @@ describe('round 4: here-documents, case patterns and patterns packed in a word',
     allowed('case $f in *.js) echo js;; *) echo other;; esac');
   });
   test('what a here-document hides is still found', () => {
-    blocked("python3 <<'EOF'\nimport os\nos.system('s''f data query -o prod')\nEOF", /could not find every sf command/);
     blocked('cat <<EOF\n$(sf data query -q x -o prod)\nEOF', /"prod" is not listed/);
     blocked('cat <<EOF; sf data query -q x -o prod\nbody\nEOF', /"prod" is not listed/);
     blocked("bash <<'EOF'\nsf data query -q x -o prod\nEOF", /hides the command/);
-    blocked("cat <<'EOF'\n/usr/local/bin/s? data query -o prod\nEOF", /could not find every sf command/);
     blocked('(( x = 1 << 2 ))\nx=sf; $x data query -q x -o prod\n2', /computed command name/);
     blocked('echo $[1<<2]\nx=sf; $x data query -q x -o prod\n2]', /computed command name/);
   });
   test('patterns inside a word that is a command line, POSIX classes, and spaces inside command words', () => {
-    blocked("arch zsh -c '/usr/local/bin/s? data query -o prod'", /could not find every sf command/);
-    blocked('arch /usr/local/bin/s[[:alpha:]] data query -o prod', /could not find every sf command/);
+    const c = ctx({ expandGlob: (w) => [w.replace(/[^/]*$/, 'sf')] });
+    blocked("arch zsh -c '/usr/local/bin/s? data query -o prod'", /could not find every sf command/, c);
+    blocked('arch /usr/local/bin/s[[:alpha:]] data query -o prod', /could not find every sf command/, c);
     blocked('sf display\\ org -o uat', /access token/);
+  });
+});
+
+const finds = (names) => ({ expandGlob: (w) => names.filter((n) => new RegExp(`^${w.replace(/[.]/g, '\\.').replace(/\*/g, '.*').replace(/\?/g, '.')}$`).test(n)) });
+
+describe('round 5 K-1: argument patterns are checked by what they expand to', () => {
+  test('everyday patterns pass when nothing they match is sf', () => {
+    const c = ctx(finds(['a.txt', 'b.js', 'dist/x.js', 'README.md']));
+    for (const s of ['ls *', 'rm -rf dist/*', 'wc -l *.js', 'ls [a-z]*', 'npx vitest run test/*.test.mjs', 'git add force-app/**/*.xml']) allowed(s, c);
+  });
+  test('a pattern that matches a file named sf is a mention', () => {
+    const c = ctx(finds(['sf', 'a.txt']));
+    blocked('arch ./s? data query -o prod', /could not find every sf command/, ctx(finds(['./sf'])));
+    blocked('ls *', /could not find every sf command/, c);
+    blocked('arch s* data query -o prod', /could not find every sf command/, c);
+  });
+  test('a pattern the guard could not expand is a mention', () => {
+    blocked('arch ./s? data query -o prod', /could not find every sf command/, ctx({ expandGlob: () => null }));
+  });
+  test('braces and zsh =name do not need the file system', () => {
+    const c = ctx(finds([]));
+    blocked('arch {s,x}f data query -o prod', /could not find every sf command/, c);
+    blocked('arch =sf data query -o prod', /could not find every sf command/, c);
+    allowed('ls src/{a,b}.ts', c);
+  });
+  test('a line that changes folder keeps the could-match rule', () => {
+    const c = ctx(finds([]));
+    blocked('cd x && arch s? data query -o prod', /could not find every sf command/, c);
+    blocked('cd dist && ls *', /could not find every sf command/, c);
+    allowed('cd dist && ls *.cls', c);
+  });
+  test('a pattern in the command name is still opaque', () => {
+    blocked('/usr/local/bin/s? data query -o prod', /hides the command from the guard/, ctx(finds([])));
+  });
+});
+
+describe('round 5 K-1: globPaths, the built-in expander', () => {
+  test('expands *, ?, [..] and ** against real folders', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sftk-glob-'));
+    try {
+      fs.mkdirSync(path.join(dir, 'bin', 'deep'), { recursive: true });
+      for (const f of ['bin/sf', 'bin/x.txt', 'bin/deep/sfdx.cmd', '.hidden']) fs.writeFileSync(path.join(dir, f), '');
+      expect(globPaths('bin/s?', { cwd: dir, homeDir: dir })).toEqual([path.join(dir, 'bin', 'sf')]);
+      expect(globPaths('bin/[r-t]f', { cwd: dir, homeDir: dir })).toEqual([path.join(dir, 'bin', 'sf')]);
+      expect(globPaths('*', { cwd: dir, homeDir: dir })).toEqual([path.join(dir, 'bin')]);
+      expect(globPaths('~/bin/*.txt', { cwd: '/', homeDir: dir })).toEqual([path.join(dir, 'bin', 'x.txt')]);
+      expect(globPaths('**/sfdx*', { cwd: dir, homeDir: dir })).toEqual([path.join(dir, 'bin', 'deep', 'sfdx.cmd')]);
+      expect(globPaths('nope/*', { cwd: dir, homeDir: dir })).toEqual([]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('round 5 K-2: here-document bodies are data', () => {
+  test('bodies are not words', () => {
+    const c = ctx(finds(['sf']));
+    allowed("git commit -m \"$(cat <<'EOF'\nAdd flow\n\n* bullet one\n* bullet two\nEOF\n)\"", c);
+    allowed('cat <<EOF > x.txt\nhello *\nEOF', c);
+    allowed("cat <<'EOF' > notes.md\n/usr/local/bin/s? and s\\f are data here\nEOF", c);
+  });
+  test('the raw backstop, substitutions in unquoted bodies, and shells reading a body still block', () => {
+    blocked("cat <<'EOF'\nrun sf data query later\nEOF", /could not find every sf command/);
+    blocked("cat <<EOF\n$(s''f data query -q x -o prod)\nEOF", /"prod" is not listed/);
+    blocked("bash <<'EOF'\nsf data query -q x -o prod\nEOF", /hides the command/);
+    blocked("sh <<EOF\nls\nEOF", /hides the command/);
+  });
+});
+
+describe('round 5 K-3: an incomplete command sf would finish with a prompt', () => {
+  test('incomplete commands with stdin from a pipe or redirect are blocked', () => {
+    for (const c of ["printf '\\r' | sf start -c prod -p P -b main", 'sf start -c prod -p P -b main < keys.txt', 'sf start -c prod -p P -b main <<< y',
+      "printf '\\r' | bash -c 'sf start -c prod -p P -b main'", "yes | (sf start -c prod -p P -b main)", 'echo $(printf x | sf start -c prod -p P -b main)',
+      "printf '\\r' | sf retrieve -o uat"]) blocked(c, /Type the whole sf command/);
+    // Whole, so no prompt: sf runs pipeline start, and -c is read as its org.
+    blocked("printf '\\r' | sf project deploy start pipeline -c prod -p P -b main", /"prod" is not listed/);
+  });
+  test('complete commands, in any order, may read stdin or feed a pipe', () => {
+    for (const c of ["echo 'System.debug(1);' | sf apex run -o uat", "echo 'System.debug(1);' | sf run apex -o uat", 'sf org list | grep uat',
+      'sf data query -o uat -q x | head', 'echo x | sf config get target-org', 'sf force:org:list | cat', 'sf start -c x -o uat']) allowed(c);
   });
 });
