@@ -87,6 +87,7 @@ test('caches the instance URL between calls', () => {
 });
 
 test('uses the project default org when no -o is given', () => {
+  fs.writeFileSync(path.join(project, 'sfdx-project.json'), '{}');
   fs.mkdirSync(path.join(project, '.sf'));
   fs.writeFileSync(path.join(project, '.sf', 'config.json'), '{"target-org":"nitro-prod"}');
   const r = runHook(bash('sf project deploy start -m ApexClass:Foo'));
@@ -176,5 +177,60 @@ describe('final fix F-1: the hook reads SF_ and SFDX_ variables before the confi
     fs.writeFileSync(path.join(home, '.sf', 'config.json'), '{"target-dev-hub":"prod-hub"}');
     expect(runHook(bash('sf org create scratch -f x.json')).status).toBe(2);
     expect(runHook(bash('sf data query -o uat -q x')).status).toBe(0);
+  });
+});
+
+describe('final fix F-2: the hook resolves from the folder the command runs in', () => {
+  const sfdx = (dir, org) => {
+    fs.mkdirSync(path.join(dir, '.sf'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'sfdx-project.json'), '{}');
+    if (org) fs.writeFileSync(path.join(dir, '.sf', 'config.json'), JSON.stringify({ 'target-org': org }));
+  };
+  test('a folder outside the project needs an explicit org', () => {
+    sfdx(project, 'uat');
+    const other = path.join(root, 'other');
+    sfdx(other, 'prod');
+    const r = runHook(bash('sf data query -q "SELECT Id FROM User"', { cwd: other }));
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/Pass -o <sandbox alias>; this folder is outside the project\./);
+    expect(runHook(bash('sf data query -o uat -q x', { cwd: other })).status).toBe(0);
+  });
+  test('a nested SFDX project uses its own default org', () => {
+    sfdx(project, 'uat');
+    const sub = path.join(project, 'sub');
+    sfdx(sub, 'prod');
+    expect(runHook(bash('sf data query -q x', { cwd: project })).status).toBe(0);
+    const r = runHook(bash('sf data query -q x', { cwd: sub }));
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/"prod" is not listed/);
+  });
+  test('without sfdx-project.json the project config is ignored, as sf does', () => {
+    fs.mkdirSync(path.join(project, '.sf'));
+    fs.writeFileSync(path.join(project, '.sf', 'config.json'), '{"target-org":"uat"}');
+    fs.mkdirSync(path.join(home, '.sf'));
+    fs.writeFileSync(path.join(home, '.sf', 'config.json'), '{"target-org":"prod"}');
+    const r = runHook(bash('sf data query -q x', { cwd: project }));
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/"prod" is not listed/);
+  });
+  test('scripts resolve from the command folder, and ~ is the home folder', () => {
+    fs.writeFileSync(path.join(home, 'x.sh'), 'sf data query -o prod -q x\n');
+    const r = runHook(bash('bash ~/x.sh'));
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/~\/x\.sh runs sf commands/);
+    const sub = path.join(project, 'scripts');
+    fs.mkdirSync(sub);
+    fs.writeFileSync(path.join(sub, 'deploy.sh'), 'sf project deploy start -o prod\n');
+    const s = runHook(bash('bash deploy.sh', { cwd: sub }));
+    expect(s.status).toBe(2);
+    expect(s.stderr).toMatch(/deploy\.sh runs sf commands/);
+  });
+  test('a script the guard cannot read (missing or a folder) is blocked', () => {
+    fs.mkdirSync(path.join(project, 'adir'));
+    for (const f of ['missing.sh', 'adir']) {
+      const r = runHook(bash(`bash ${f}`, { cwd: project }));
+      expect(r.status).toBe(2);
+      expect(r.stderr).toContain(`The guard can't read ${f} to check it for sf commands. Run the sf commands directly.`);
+    }
   });
 });

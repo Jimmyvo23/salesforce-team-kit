@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { decide, readDefaultOrg, cachedInstanceUrl } from '../lib/guard.mjs';
+import { decide, readDefaultOrg, cachedInstanceUrl, findSfdxProject } from '../lib/guard.mjs';
 import { loadTeam } from '../lib/team.mjs';
 import { appendEvent } from '../lib/events.mjs';
 import { logPath } from '../lib/paths.mjs';
@@ -25,6 +25,21 @@ function readOrNull(file) {
   } catch {
     return null;
   }
+}
+
+/** @param {string} p @returns {string} the real path when it exists */
+function real(p) {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
+/** @param {string} dir @param {string} sub @returns {boolean} true when sub is dir or below it */
+function isInside(dir, sub) {
+  const rel = path.relative(real(dir), real(sub));
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }
 
 /** @param {string} alias @returns {string | null} */
@@ -47,6 +62,9 @@ function lookupInstanceUrl(alias) {
 export function guard(input, { projectDir, homeDir, now, env = process.env }) {
   if (!input || typeof input !== 'object' || input.tool_name !== 'Bash') return { allow: true };
   const command = typeof input.tool_input?.command === 'string' ? input.tool_input.command : '';
+  // sf resolves the project config and relative paths from the folder the command runs in.
+  const base = typeof input.cwd === 'string' && input.cwd ? path.resolve(projectDir, input.cwd) : projectDir;
+  const sfdxRoot = findSfdxProject(base, (f) => fs.existsSync(f));
   const loaded = loadTeam(path.join(projectDir, '.team', 'team.json'));
   const cachePath = path.join(projectDir, CACHE_FILE);
   /** @type {Record<string, { url: string, at: string }>} */
@@ -60,8 +78,9 @@ export function guard(input, { projectDir, homeDir, now, env = process.env }) {
   return decide(command, {
     sandboxes: loaded.ok ? loaded.team.orgs.sandbox : null,
     teamError: loaded.ok ? undefined : loaded.error,
-    defaultOrg: () => readDefaultOrg({ projectDir, homeDir, readFile: readOrNull, env }),
-    defaultDevHub: () => readDefaultOrg({ projectDir, homeDir, readFile: readOrNull, env, hub: true }),
+    defaultOrg: () => readDefaultOrg({ projectDir: sfdxRoot, homeDir, readFile: readOrNull, env }),
+    defaultDevHub: () => readDefaultOrg({ projectDir: sfdxRoot, homeDir, readFile: readOrNull, env, hub: true }),
+    mustNameOrg: isInside(projectDir, base) ? null : 'Pass -o <sandbox alias>; this folder is outside the project.',
     instanceUrl: (alias) => {
       const r = cachedInstanceUrl(alias, { cache, now, lookup: lookupInstanceUrl });
       if (r.cache !== cache) {
@@ -74,7 +93,7 @@ export function guard(input, { projectDir, homeDir, now, env = process.env }) {
       }
       return r.url;
     },
-    readScript: (file) => readOrNull(path.resolve(projectDir, file)),
+    readScript: (file) => readOrNull(path.resolve(base, file === '~' || file.startsWith('~/') ? path.join(homeDir, file.slice(1)) : file)),
   });
 }
 

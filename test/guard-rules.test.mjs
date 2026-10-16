@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { decide, checkSf, isSandboxUrl, readDefaultOrg, cachedInstanceUrl, CACHE_TTL_MS } from '../lib/guard.mjs';
+import { decide, checkSf, isSandboxUrl, readDefaultOrg, cachedInstanceUrl, CACHE_TTL_MS, findSfdxProject } from '../lib/guard.mjs';
 
 const URLS = {
   uat: 'https://acme--uat.sandbox.my.salesforce.com',
@@ -313,5 +313,56 @@ describe('final fix F-1: readDefaultOrg reads the environment first', () => {
   });
   test('without an SFDX project only the global config counts', () => {
     expect(readDefaultOrg({ projectDir: null, homeDir: '/h', readFile: files({ '/h/.sf/config.json': '{"target-org":"prod"}' }) })).toBe('prod');
+  });
+});
+
+describe('final fix F-2: folder changes and scripts', () => {
+  test('a line that changes folder needs an explicit org', () => {
+    for (const c of ['cd ../other && sf data query -q "SELECT Id FROM User"', 'pushd ../other; sf data query -q x', 'popd; sf data query -q x',
+      '(cd ../other && sf data query -q x)', 'cd ../other; bash -c "sf data query -q x"', 'sf data query -q x; cd ..']) {
+      blocked(c, /This line changes folder, so pass -o <sandbox alias>\./);
+    }
+    // unwrap resumes at the script-looking "../other" behind builtin (T6-c), so the reason differs.
+    blocked('builtin cd ../other && sf data query -q x', /This line changes folder/);
+    for (const c of ['env -C ../other sf data query -q x', 'env --chdir=../other sf data query -q x', 'sudo -D ../other sf data query -q x',
+      'env -C /tmp/other sf data query -q x']) {
+      blocked(c, /This line changes folder/);
+    }
+    allowed('env -i sf data query -q x');
+    allowed('cd force-app && sf project deploy start -o uat -m ApexClass:Foo');
+    allowed('cd force-app && sf project generate manifest --source-dir .');
+  });
+
+  test('a sourced script that changes folder counts as a folder change', () => {
+    const c = ctx({ readScript: (f) => (f === 'go.sh' ? 'cd ../other\n' : null) });
+    blocked('source go.sh; sf data query -q x', /This line changes folder/, c);
+  });
+
+  test('a relative script after cd is blocked; the guard cannot tell which file runs', () => {
+    blocked('cd force-app && bash ../x.sh', /changes folder, so the guard can't tell which \.\.\/x\.sh runs/, ctx({ readScript: () => 'echo hi\n' }));
+    allowed('cd force-app && bash /opt/tools/x.sh', ctx({ readScript: () => 'echo hi\n' }));
+  });
+
+  test('a script the guard cannot read is blocked', () => {
+    for (const [c, f] of [['bash missing.sh', 'missing.sh'], ['./missing.sh', './missing.sh'], ['source nothere.sh', 'nothere.sh'], ['bash ~/x.sh', '~/x.sh']]) {
+      blocked(c, new RegExp(`The guard can't read ${f.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')} to check it for sf commands\\. Run the sf commands directly\\.`));
+    }
+  });
+
+  test('when the hook says the folder is outside the project, the default org is not used', () => {
+    const c = ctx({ mustNameOrg: 'Pass -o <sandbox alias>; this folder is outside the project.' });
+    blocked('sf data query -q x', /this folder is outside the project/, c);
+    allowed('sf data query -o uat -q x', c);
+    allowed('sf --version', c);
+  });
+});
+
+describe('final fix F-2: findSfdxProject', () => {
+  const has = (set) => (f) => set.includes(f);
+  test('the nearest folder with sfdx-project.json, from the folder up', () => {
+    expect(findSfdxProject('/a/b/c', has(['/a/sfdx-project.json', '/a/b/sfdx-project.json']))).toBe('/a/b');
+    expect(findSfdxProject('/a/b/c', has(['/a/b/c/sfdx-project.json']))).toBe('/a/b/c');
+    expect(findSfdxProject('/a/b/c', has(['/a/sfdx-project.json']))).toBe('/a');
+    expect(findSfdxProject('/a/b/c', has([]))).toBeNull();
   });
 });
