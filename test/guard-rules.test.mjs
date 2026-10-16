@@ -246,3 +246,72 @@ describe('fix round 1 (Ruling T7-c)', () => {
     blocked('./x.sh', /runs sf commands/, ctx({ readScript: () => '\n  SF org list -o prod\n' }));
   });
 });
+
+describe('final fix F-1: the org is found everywhere sf looks', () => {
+  test('deprecated org flag aliases name an org, in every form', () => {
+    for (const c of ['sf data query -u prod -q "SELECT Id FROM User"', 'sf data query --targetusername prod -q x',
+      'sf data query --targetusername=prod -q x', 'sf data query -uprod -q x', 'sf data query -u=prod -q x',
+      'sf org create scratch --targetdevhubusername prod -f c.json', 'sf org create scratch --targetdevhubusername=prod -f c.json']) {
+      blocked(c, /"prod" is not listed/);
+    }
+    allowed('sf data query -u uat -q x');
+    allowed('sf data query --targetusername=dev -q x');
+  });
+
+  test('--flags-dir is blocked in any form', () => {
+    for (const c of ['sf data query --flags-dir flags -q x', 'sf data query --flags-dir=flags -q x', 'sf data query -o uat --flags-dir ./f -q x']) {
+      blocked(c, /can't read --flags-dir files\. Pass -o <sandbox alias> on the command instead/);
+    }
+  });
+
+  test('SF_ and SFDX_ variable assignments on the line are blocked', () => {
+    for (const c of ['SF_TARGET_ORG=prod sf data query -q "SELECT Id FROM User"', 'env SF_TARGET_ORG=prod sf data query -q x',
+      'export SF_TARGET_ORG=prod; sf data query -q x', 'declare -x SF_TARGET_ORG=prod; sf data query -q x',
+      'typeset -x SFDX_DEFAULTUSERNAME=prod && sf data query -q x', 'SF_TARGET_ORG=prod; export SF_TARGET_ORG; sf data query -q x',
+      'sudo SF_TARGET_ORG=prod sf data query -q x', 'env -i SF_TARGET_DEV_HUB=prod sf org create scratch -f c.json',
+      'SF_TARGET_ORG=prod env sf data query -q x', 'bash -c "SF_TARGET_ORG=prod sf data query -q x"',
+      'SF_TARGET_ORG+=prod sf data query -q x', ': ${SF_TARGET_ORG:=prod}; export SF_TARGET_ORG; sf data query -q x',
+      'sf_target_org=prod sf data query -q x', 'export $(cat .env); sf data query -q x', 'env $(cat .env) sf data query -q x',
+      'SF_TARGET_ORG=prod sf data query -o uat -q x']) {
+      blocked(c, /Setting SF_\/SFDX_ variables can change the target org\. Pass -o <sandbox alias> instead/);
+    }
+    allowed('FOO=1 sf data query -o uat -q x');
+    allowed('echo $SF_TARGET_ORG');
+    allowed('sf data query -o uat -q "SELECT SF_Field__c FROM Account"');
+  });
+
+  test('a sourced script that sets SF_ variables is blocked', () => {
+    blocked('source env.sh; sf data query -q x', /Setting SF_\/SFDX_ variables/, ctx({ readScript: () => 'export SF_TARGET_ORG=prod\n' }));
+  });
+
+  test('changing HOME on a line that runs sf is blocked', () => {
+    blocked('HOME=/tmp/h sf data query -o uat -q x', /HOME/);
+    blocked('export HOME=/tmp/h; sf data query -o uat -q x', /HOME/);
+    allowed('HOME=/tmp/h npm test');
+  });
+
+  test('a default Dev Hub must be a listed sandbox too', () => {
+    blocked('sf org create scratch -f c.json', /default Dev Hub "prod-hub"/, ctx({ defaultDevHub: () => 'prod-hub' }));
+    allowed('sf org create scratch -f c.json', ctx({ defaultDevHub: () => 'dev' }));
+    allowed('sf data query -o uat -q x', ctx({ defaultDevHub: () => 'prod-hub' }));
+  });
+});
+
+describe('final fix F-1: readDefaultOrg reads the environment first', () => {
+  const files = (map) => (f) => map[f] ?? null;
+  const cfg = files({ '/p/.sf/config.json': '{"target-org":"uat","target-dev-hub":"hub"}' });
+  test('SF_TARGET_ORG, then SFDX_DEFAULTUSERNAME, then config', () => {
+    expect(readDefaultOrg({ projectDir: '/p', homeDir: '/h', readFile: cfg, env: { SF_TARGET_ORG: 'prod', SFDX_DEFAULTUSERNAME: 'old' } })).toBe('prod');
+    expect(readDefaultOrg({ projectDir: '/p', homeDir: '/h', readFile: cfg, env: { SFDX_DEFAULTUSERNAME: 'old' } })).toBe('old');
+    expect(readDefaultOrg({ projectDir: '/p', homeDir: '/h', readFile: cfg, env: { SF_TARGET_ORG: ' ' } })).toBe('uat');
+  });
+  test('the dev hub: SF_TARGET_DEV_HUB, then SFDX_DEFAULTDEVHUBUSERNAME, then config', () => {
+    expect(readDefaultOrg({ hub: true, projectDir: '/p', homeDir: '/h', readFile: cfg, env: { SF_TARGET_DEV_HUB: 'prod' } })).toBe('prod');
+    expect(readDefaultOrg({ hub: true, projectDir: '/p', homeDir: '/h', readFile: cfg, env: { SFDX_DEFAULTDEVHUBUSERNAME: 'old' } })).toBe('old');
+    expect(readDefaultOrg({ hub: true, projectDir: '/p', homeDir: '/h', readFile: cfg, env: {} })).toBe('hub');
+    expect(readDefaultOrg({ hub: true, projectDir: null, homeDir: '/h', readFile: files({ '/h/.sfdx/sfdx-config.json': '{"defaultdevhubusername":"x"}' }) })).toBe('x');
+  });
+  test('without an SFDX project only the global config counts', () => {
+    expect(readDefaultOrg({ projectDir: null, homeDir: '/h', readFile: files({ '/h/.sf/config.json': '{"target-org":"prod"}' }) })).toBe('prod');
+  });
+});

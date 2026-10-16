@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -38,10 +38,12 @@ beforeEach(() => {
 });
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
-const runHook = (input) => spawnSync(process.execPath, [HOOK], {
+// The caller's own SF_/SFDX_ variables would change the default org, so tests start without them.
+const cleanEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(SF|SFDX)_/i.test(k)));
+const runHook = (input, extraEnv = {}) => spawnSync(process.execPath, [HOOK], {
   input: JSON.stringify(input),
   encoding: 'utf8',
-  env: { ...process.env, CLAUDE_PROJECT_DIR: project, HOME: home, PATH: `${bin}${path.delimiter}${process.env.PATH}`, FAKE_SF_LOG: path.join(root, 'sf.log') },
+  env: { ...cleanEnv, CLAUDE_PROJECT_DIR: project, HOME: home, PATH: `${bin}${path.delimiter}${process.env.PATH}`, FAKE_SF_LOG: path.join(root, 'sf.log'), ...extraEnv },
 });
 const bash = (command, extra = {}) => ({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command }, ...extra });
 const events = () => {
@@ -101,7 +103,7 @@ const quiet = (r, status) => {
   expect(r.status).toBe(status);
   expect(r.stdout).toBe('');
 };
-const rawRun = (input, env) => spawnSync(process.execPath, [HOOK], { input, encoding: 'utf8', env: { ...process.env, HOME: home, ...env } });
+const rawRun = (input, env) => spawnSync(process.execPath, [HOOK], { input, encoding: 'utf8', env: { ...cleanEnv, HOME: home, ...env } });
 
 test('non-Bash tools, and bad input without sf, are allowed silently', () => {
   const r = runHook({ tool_name: 'Edit', tool_input: { file_path: 'x' } });
@@ -144,4 +146,35 @@ test('a broken team.json blocks sf org commands only', () => {
   const r = runHook(bash('sf data query -o uat -q x'));
   expect(r.status).toBe(2);
   expect(r.stderr).toMatch(/can't read \.team\/team\.json/);
+});
+
+describe('final fix F-1: the hook reads SF_ and SFDX_ variables before the config', () => {
+  const sandboxDefault = () => {
+    fs.writeFileSync(path.join(project, 'sfdx-project.json'), '{}');
+    fs.mkdirSync(path.join(project, '.sf'));
+    fs.writeFileSync(path.join(project, '.sf', 'config.json'), '{"target-org":"uat"}');
+  };
+  test('SF_TARGET_ORG in the hook environment wins over the project default', () => {
+    sandboxDefault();
+    expect(runHook(bash('sf data query -q "SELECT Id FROM User"')).status).toBe(0);
+    const r = runHook(bash('sf data query -q "SELECT Id FROM User"'), { SF_TARGET_ORG: 'prod' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/"prod" is not listed/);
+  });
+  test('SFDX_DEFAULTUSERNAME counts too', () => {
+    sandboxDefault();
+    const r = runHook(bash('sf data query -q x'), { SFDX_DEFAULTUSERNAME: 'prod' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/"prod" is not listed/);
+  });
+  test('a default Dev Hub from the environment or the config must be a listed sandbox', () => {
+    sandboxDefault();
+    const r = runHook(bash('sf org create scratch -f config/project-scratch-def.json'), { SF_TARGET_DEV_HUB: 'prod-hub' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/default Dev Hub "prod-hub"/);
+    fs.mkdirSync(path.join(home, '.sf'));
+    fs.writeFileSync(path.join(home, '.sf', 'config.json'), '{"target-dev-hub":"prod-hub"}');
+    expect(runHook(bash('sf org create scratch -f x.json')).status).toBe(2);
+    expect(runHook(bash('sf data query -o uat -q x')).status).toBe(0);
+  });
 });

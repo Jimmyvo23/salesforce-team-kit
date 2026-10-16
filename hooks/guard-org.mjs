@@ -41,10 +41,10 @@ function lookupInstanceUrl(alias) {
 
 /**
  * @param {any} input the hook input
- * @param {{ projectDir: string, homeDir: string, now: Date }} env
+ * @param {{ projectDir: string, homeDir: string, now: Date, env?: Record<string, string | undefined> }} o
  * @returns {import('../lib/guard.mjs').Decision}
  */
-export function guard(input, { projectDir, homeDir, now }) {
+export function guard(input, { projectDir, homeDir, now, env = process.env }) {
   if (!input || typeof input !== 'object' || input.tool_name !== 'Bash') return { allow: true };
   const command = typeof input.tool_input?.command === 'string' ? input.tool_input.command : '';
   const loaded = loadTeam(path.join(projectDir, '.team', 'team.json'));
@@ -60,7 +60,8 @@ export function guard(input, { projectDir, homeDir, now }) {
   return decide(command, {
     sandboxes: loaded.ok ? loaded.team.orgs.sandbox : null,
     teamError: loaded.ok ? undefined : loaded.error,
-    defaultOrg: () => readDefaultOrg({ projectDir, homeDir, readFile: readOrNull }),
+    defaultOrg: () => readDefaultOrg({ projectDir, homeDir, readFile: readOrNull, env }),
+    defaultDevHub: () => readDefaultOrg({ projectDir, homeDir, readFile: readOrNull, env, hub: true }),
     instanceUrl: (alias) => {
       const r = cachedInstanceUrl(alias, { cache, now, lookup: lookupInstanceUrl });
       if (r.cache !== cache) {
