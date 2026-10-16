@@ -13,21 +13,26 @@ const FIXTURE = fileURLToPath(new URL('./fixtures/hooks/subagent-start.json', im
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
 const KIT_FILES = [
-  '.claude/agents/backend.md',
-  '.claude/agents/frontend.md',
+  '.claude/agents/admin.md',
+  '.claude/agents/analyst.md',
+  '.claude/agents/developer.md',
+  '.claude/agents/qa.md',
   '.claude/agents/reviewer.md',
-  '.claude/agents/tester.md',
   '.team/bin/cli/team-status.mjs',
+  '.team/bin/hooks/guard-org.mjs',
   '.team/bin/hooks/record.mjs',
   '.team/bin/lib/events.mjs',
+  '.team/bin/lib/guard.mjs',
   '.team/bin/lib/paths.mjs',
+  '.team/bin/lib/sf-commands.mjs',
   '.team/bin/lib/team.mjs',
   '.team/bin/team-status.mjs',
+  '.team/changeset-template.md',
   '.team/handoffs/handoff-template.md',
   '.team/planner.md',
   '.team/work-order-template.md',
 ];
-const EXECUTABLES = ['.team/bin/cli/team-status.mjs', '.team/bin/hooks/record.mjs', '.team/bin/team-status.mjs'];
+const EXECUTABLES = ['.team/bin/cli/team-status.mjs', '.team/bin/hooks/guard-org.mjs', '.team/bin/hooks/record.mjs', '.team/bin/team-status.mjs'];
 
 let root, target, home;
 /** Environment for spawned children, without any CLAUDE_PROJECT_DIR inherited from the test runner. */
@@ -45,7 +50,6 @@ beforeEach(() => {
   const git = spawnSync('git', ['init', '-q'], { cwd: target, encoding: 'utf8' });
   expect(git.status).toBe(0);
   fs.mkdirSync(path.join(home, '.claude', 'plugins', 'cache', 'superpowers-marketplace', 'superpowers'), { recursive: true });
-  fs.mkdirSync(path.join(home, '.claude', 'plugins', 'cache', 'claude-plugins-official', 'frontend-design'), { recursive: true });
 });
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -78,7 +82,7 @@ function snapshot(dir = target) {
 /**
  * Run the installer CLI in-process.
  * @param {string[]} args
- * @param {{ answers?: string[], cwd?: string, homeDir?: string }} [o]
+ * @param {{ answers?: string[], cwd?: string, homeDir?: string, hasCommand?: (c: string, a: string[]) => boolean }} [o]
  */
 async function cli(args, o = {}) {
   const answers = [...(o.answers ?? [])];
@@ -89,6 +93,8 @@ async function cli(args, o = {}) {
     cwd: o.cwd ?? root,
     homeDir: o.homeDir ?? home,
     nodeVersion: 'v24.1.0',
+    hasCommand: o.hasCommand ?? (() => true),
+    gitInit: (dir) => spawnSync('git', ['init', '-q'], { cwd: dir }).status === 0,
     stdout: (s) => { out += s; },
     stderr: (s) => { err += s; },
     ask: async (q) => {
@@ -108,7 +114,7 @@ describe('install', () => {
     expect(r.err).toBe('');
     expect(r.code).toBe(0);
     for (const f of KIT_FILES) expect(exists(f), f).toBe(true);
-    expect(read('.claude/agents/backend.md')).toBe(fs.readFileSync(path.join(KIT, 'agents/backend.md'), 'utf8'));
+    expect(read('.claude/agents/admin.md')).toBe(fs.readFileSync(path.join(KIT, 'agents/admin.md'), 'utf8'));
     expect(read('.team/bin/lib/events.mjs')).toBe(fs.readFileSync(path.join(KIT, 'lib/events.mjs'), 'utf8'));
     expect(exists('.team/bin/lib/state.mjs')).toBe(false);
     for (const f of EXECUTABLES) expect(fs.statSync(p(f)).mode & 0o111, f).not.toBe(0);
@@ -116,16 +122,16 @@ describe('install', () => {
     const md = read('CLAUDE.md');
     expect(md).toContain('<!-- agent-team-kit:start -->\n## Team');
     expect(md).toContain('<!-- agent-team-kit:end -->');
-    expect(read('.gitignore')).toBe('# agent-team-kit:start\n.team/events*.jsonl\nagent-status.json\n.superpowers/\n.claude/settings.json.bak\n# agent-team-kit:end\n');
+    expect(read('.gitignore')).toBe('# agent-team-kit:start\n.team/events*.jsonl\n.team/org-cache.json\nagent-status.json\n.superpowers/\n.claude/settings.json.bak\n.sf/\n.sfdx/\n# agent-team-kit:end\n');
 
     const settings = JSON.parse(read('.claude/settings.json'));
-    expect(Object.keys(settings.hooks).sort()).toEqual(['PostToolUse', 'Stop', 'SubagentStart', 'SubagentStop']);
+    expect(Object.keys(settings.hooks).sort()).toEqual(['PostToolUse', 'PreToolUse', 'Stop', 'SubagentStart', 'SubagentStop']);
     expect(settings.hooks.SubagentStart[0].hooks[0].command).toBe('node "$CLAUDE_PROJECT_DIR/.team/bin/hooks/record.mjs" agent-start');
     expect(exists('.claude/settings.json.bak')).toBe(false);
 
     const team = JSON.parse(read('.team/team.json'));
     expect(team.project).toBe('my project');
-    expect(team.members.map((m) => m.id)).toEqual(['planner', 'backend', 'frontend', 'tester', 'reviewer']);
+    expect(team.members.map((m) => m.id)).toEqual(['planner', 'analyst', 'admin', 'developer', 'qa', 'reviewer']);
 
     const manifest = JSON.parse(read('.team/kit-manifest.json'));
     expect(manifest.version).toBe(JSON.parse(fs.readFileSync(path.join(KIT, 'package.json'), 'utf8')).version);
@@ -133,7 +139,7 @@ describe('install', () => {
     for (const f of KIT_FILES) expect(manifest.files[f]).toBe(sha(read(f)));
     expect([...manifest.created].sort()).toEqual(['.claude/settings.json', '.gitignore', 'CLAUDE.md']);
 
-    expect(r.out).toMatch(/^ {2}create +\.claude\/agents\/backend\.md$/m);
+    expect(r.out).toMatch(/^ {2}create +\.claude\/agents\/admin\.md$/m);
   });
 
   test('a relative --target is resolved against cwd', async () => {
@@ -174,23 +180,23 @@ describe('install', () => {
 
   test('customized agent is a conflict and is kept when resolveConflict returns false', async () => {
     await install();
-    const original = read('.claude/agents/backend.md');
+    const original = read('.claude/agents/admin.md');
     const manifestBefore = read('.team/kit-manifest.json');
-    write('.claude/agents/backend.md', `${original}\nMy own rule.\n`);
+    write('.claude/agents/admin.md', `${original}\nMy own rule.\n`);
 
     const plan = planInstall({ kitDir: KIT, targetDir: target });
-    const conflict = plan.find((c) => c.path === '.claude/agents/backend.md');
+    const conflict = plan.find((c) => c.path === '.claude/agents/admin.md');
     expect(conflict.action).toBe('conflict');
-    expect(plan.filter((c) => c.action !== 'unchanged' && c.path !== '.claude/agents/backend.md')).toEqual([]);
+    expect(plan.filter((c) => c.action !== 'unchanged' && c.path !== '.claude/agents/admin.md')).toEqual([]);
 
     const seen = [];
     applyChanges(plan, { targetDir: target, resolveConflict: (c) => { seen.push(c.path); return false; } });
-    expect(seen).toEqual(['.claude/agents/backend.md']);
-    expect(read('.claude/agents/backend.md')).toBe(`${original}\nMy own rule.\n`);
+    expect(seen).toEqual(['.claude/agents/admin.md']);
+    expect(read('.claude/agents/admin.md')).toBe(`${original}\nMy own rule.\n`);
     expect(read('.team/kit-manifest.json')).toBe(manifestBefore);
 
     applyChanges(planInstall({ kitDir: KIT, targetDir: target }), { targetDir: target, resolveConflict: () => true });
-    expect(read('.claude/agents/backend.md')).toBe(original);
+    expect(read('.claude/agents/admin.md')).toBe(original);
   });
 
   test('a kit file updated since the last install is an update, not a conflict', async () => {
@@ -206,19 +212,19 @@ describe('install', () => {
   });
 
   test('an existing file the kit never wrote is a conflict', async () => {
-    write('.claude/agents/backend.md', 'my own backend agent\n');
+    write('.claude/agents/admin.md', 'my own backend agent\n');
     const plan = planInstall({ kitDir: KIT, targetDir: target });
-    expect(plan.find((c) => c.path === '.claude/agents/backend.md').action).toBe('conflict');
+    expect(plan.find((c) => c.path === '.claude/agents/admin.md').action).toBe('conflict');
     applyChanges(plan, { targetDir: target, resolveConflict: () => false });
-    expect(read('.claude/agents/backend.md')).toBe('my own backend agent\n');
-    expect(JSON.parse(read('.team/kit-manifest.json')).files['.claude/agents/backend.md']).toBeUndefined();
+    expect(read('.claude/agents/admin.md')).toBe('my own backend agent\n');
+    expect(JSON.parse(read('.team/kit-manifest.json')).files['.claude/agents/admin.md']).toBeUndefined();
   });
 
   test('re-install after editing an agent: y replaces, n keeps, --yes keeps', async () => {
     await install();
-    const original = read('.claude/agents/tester.md');
+    const original = read('.claude/agents/admin.md');
     const custom = `${original}extra line one\nextra line two\n`;
-    const rel = '.claude/agents/tester.md';
+    const rel = '.claude/agents/admin.md';
 
     write(rel, custom);
     let r = await cli(['--target', target], { answers: ['y', 'n'] });
@@ -308,7 +314,7 @@ describe('install', () => {
     const r = await cli(['--target', target], { answers: ['n'] });
     expect(r.code).toBe(0);
     expect(r.questions).toEqual(['Apply these changes? (y/n)']);
-    expect(r.out).toMatch(/^ {2}create +\.claude\/agents\/backend\.md$/m);
+    expect(r.out).toMatch(/^ {2}create +\.claude\/agents\/admin\.md$/m);
     expect(snapshot()).toEqual(before);
 
     const r2 = await install();
@@ -325,12 +331,12 @@ describe('installed scripts', () => {
 
   test('installed team-status runs from the target and appends an event', async () => {
     await install();
-    const r = spawnSync(process.execPath, ['.team/bin/team-status.mjs', 'status', '--agent', 'backend', '--status', 'working'], {
+    const r = spawnSync(process.execPath, ['.team/bin/team-status.mjs', 'status', '--agent', 'developer', '--status', 'working'], {
       cwd: target, env: cleanEnv(), encoding: 'utf8',
     });
     expect(r.stderr).toBe('');
     expect(r.status).toBe(0);
-    expect(lastEvent()).toMatchObject({ type: 'status', agent: 'backend', status: 'working', source: 'cli' });
+    expect(lastEvent()).toMatchObject({ type: 'status', agent: 'developer', status: 'working', source: 'cli' });
   });
 
   test('installed team-status warns about an id not in team.json and still writes', async () => {
@@ -421,13 +427,13 @@ describe('uninstall', () => {
 
   test('a customised kit file is a conflict on uninstall; --yes keeps it', async () => {
     await install();
-    write('.claude/agents/backend.md', 'customised\n');
+    write('.claude/agents/admin.md', 'customised\n');
     const plan = planUninstall({ targetDir: target });
-    expect(plan.find((c) => c.path === '.claude/agents/backend.md').action).toBe('conflict');
+    expect(plan.find((c) => c.path === '.claude/agents/admin.md').action).toBe('conflict');
     const r = await uninstall();
     expect(r.code).toBe(0);
-    expect(read('.claude/agents/backend.md')).toBe('customised\n');
-    expect(exists('.claude/agents/frontend.md')).toBe(false);
+    expect(read('.claude/agents/admin.md')).toBe('customised\n');
+    expect(exists('.claude/agents/analyst.md')).toBe(false);
   });
 
   test('uninstall with only a CLAUDE.md block and no .team folder works', async () => {
@@ -497,14 +503,14 @@ describe('fix round 1: safety', () => {
   test('a dangling symlink destination is a conflict and is never written through', async () => {
     const evil = path.join(root, 'outside', 'evil.md');
     fs.mkdirSync(p('.claude/agents'), { recursive: true });
-    fs.symlinkSync(evil, p('.claude/agents/backend.md'));
+    fs.symlinkSync(evil, p('.claude/agents/admin.md'));
     const plan = planInstall({ kitDir: KIT, targetDir: target });
-    const c = plan.find((x) => x.path === '.claude/agents/backend.md');
+    const c = plan.find((x) => x.path === '.claude/agents/admin.md');
     expect(c).toMatchObject({ action: 'conflict', reason: 'is a symlink' });
     applyChanges(plan, { targetDir: target, resolveConflict: () => true });
     expect(fs.existsSync(evil)).toBe(false);
-    expect(fs.lstatSync(p('.claude/agents/backend.md')).isSymbolicLink()).toBe(true);
-    expect(JSON.parse(read('.team/kit-manifest.json')).files['.claude/agents/backend.md']).toBeUndefined();
+    expect(fs.lstatSync(p('.claude/agents/admin.md')).isSymbolicLink()).toBe(true);
+    expect(JSON.parse(read('.team/kit-manifest.json')).files['.claude/agents/admin.md']).toBeUndefined();
 
     const r = await cli(['--target', target], { answers: ['y'] });
     expect(r.code).toBe(0);
@@ -656,13 +662,13 @@ describe('obsolete kit files', () => {
 
   test('entries outside the kit install roots stay ignored on install and uninstall', async () => {
     await install();
-    for (const rel of ['src/app.ts', '.team/team.json', '.team/handoffs/T-1-backend.md', '.claude/settings.local.json', '.claude/agents/../x.md', '.team/bin/../../y.md']) {
+    for (const rel of ['src/app.ts', '.team/team.json', '.team/handoffs/T-1-admin.md', '.claude/settings.local.json', '.claude/agents/../x.md', '.team/bin/../../y.md']) {
       const m = JSON.parse(read('.team/kit-manifest.json'));
       m.files[rel] = sha('');
       write('.team/kit-manifest.json', JSON.stringify(m, null, 2));
     }
     write('src/app.ts', '');
-    write('.team/handoffs/T-1-backend.md', '');
+    write('.team/handoffs/T-1-admin.md', '');
     write('.claude/settings.local.json', '');
     write('x.md', '');
     write('y.md', '');
@@ -671,7 +677,7 @@ describe('obsolete kit files', () => {
     expect(touched(planUninstall({ targetDir: target }))).toEqual([]);
     await install();
     await uninstall();
-    for (const f of ['src/app.ts', '.team/handoffs/T-1-backend.md', '.claude/settings.local.json', 'x.md', 'y.md']) expect(exists(f), f).toBe(true);
+    for (const f of ['src/app.ts', '.team/handoffs/T-1-admin.md', '.claude/settings.local.json', 'x.md', 'y.md']) expect(exists(f), f).toBe(true);
   });
 
   test('a symlinked obsolete file is a symlink conflict and never deleted', async () => {
@@ -711,5 +717,50 @@ describe('formatDiff', () => {
     expect(out).toHaveLength(40);
     expect(out.at(-1)).toBe('... 161 more lines');
     expect(out.slice(0, 39).every((l) => /^[-+]/.test(l))).toBe(true);
+  });
+});
+
+describe('salesforce install checks', () => {
+  test('a missing sf CLI stops the install and changes nothing', async () => {
+    const before = snapshot();
+    const r = await cli(['--target', target, '--yes'], { hasCommand: () => false });
+    expect(r.code).toBe(1);
+    expect(r.err).toMatch(/Salesforce CLI/);
+    expect(snapshot()).toEqual(before);
+  });
+
+  test('offers git init: n stops, y runs it and installs', async () => {
+    fs.rmSync(p('.git'), { recursive: true });
+    const no = await cli(['--target', target], { answers: ['n'] });
+    expect(no.code).toBe(1);
+    expect(no.questions[0]).toMatch(/not a Git repository. Run "git init"/);
+    expect(exists('.git')).toBe(false);
+    const yes = await cli(['--target', target], { answers: ['y', 'y'] });
+    expect(yes.code).toBe(0);
+    expect(exists('.git')).toBe(true);
+    expect(yes.out).toMatch(/Ran git init/);
+    expect(exists('.claude/agents/admin.md')).toBe(true);
+  });
+
+  test('--yes runs git init without asking', async () => {
+    fs.rmSync(p('.git'), { recursive: true });
+    const r = await install();
+    expect(r.code).toBe(0);
+    expect(r.questions).toEqual([]);
+    expect(exists('.git')).toBe(true);
+  });
+
+  test('warns when the org knowledge skill is not found, and not when it is', async () => {
+    const r = await install();
+    expect(r.out).toMatch(/org knowledge skill "my-org-knowledge" was not found/);
+    fs.mkdirSync(path.join(home, '.claude', 'skills', 'my-org-knowledge'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.claude', 'skills', 'my-org-knowledge', 'SKILL.md'), '---\nname: my-org-knowledge\n---\n');
+    const again = await install();
+    expect(again.out).not.toMatch(/was not found/);
+  });
+
+  test('the checks line names the Salesforce tools', async () => {
+    const r = await install();
+    expect(r.out).toMatch(/Checks passed: Node, Git repository, Superpowers plugin, Salesforce CLI and Code Analyzer\./);
   });
 });

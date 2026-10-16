@@ -80,7 +80,7 @@ function cleanSegment(words) {
  * @param {string} command
  * @returns {string}
  */
-function describeBash(command) {
+export function describeBash(command) {
   const segments = splitSegments(command).map(cleanSegment).filter((w) => w.length);
   if (!segments.length) return '';
   const isDir = (/** @type {string[]} */ w) => ['cd', 'pushd', 'popd'].includes(w[0]);

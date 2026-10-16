@@ -8,6 +8,9 @@
   "Stop": [
     { "hooks": [ { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.team/bin/hooks/record.mjs\" turn-end" } ] }
   ],
+  "PreToolUse": [
+    { "matcher": "Bash", "hooks": [ { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.team/bin/hooks/guard-org.mjs\"" } ] }
+  ],
   "PostToolUse": [
     { "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash", "hooks": [ { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.team/bin/hooks/record.mjs\" tool" } ] }
   ]

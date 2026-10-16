@@ -1,12 +1,15 @@
 {
-  "project": "CookNeighbour",
+  "project": "My Salesforce Project",
   "staleAfterMinutes": 5,
-  "approver": { "id": "jimmy", "name": "Jimmy", "role": "Product owner. Approves every Work Order", "color": "#ffe08a" },
+  "orgSkill": "my-org-knowledge",
+  "orgs": { "sandbox": ["dev", "uat"] },
+  "approver": { "id": "jimmy", "name": "Jimmy", "role": "Approves every Work Order and deploys to production", "color": "#ffb900" },
   "members": [
-    { "id": "planner",  "name": "Planner",  "role": "Plans the work and hands it out", "color": "#b9a7ff" },
-    { "id": "backend",  "name": "Backend",  "role": "Database, APIs and business rules", "color": "#9ee0bf" },
-    { "id": "frontend", "name": "Frontend", "role": "Pages and screens", "color": "#ffc49a" },
-    { "id": "tester",   "name": "Tester",   "role": "Writes tests and reports bugs", "color": "#a9d2ff" },
-    { "id": "reviewer", "name": "Reviewer", "role": "Final check before anything ships", "color": "#ffb3c9" }
+    { "id": "planner",   "name": "Architect", "role": "Designs the solution and runs the team", "color": "#6a5ae0" },
+    { "id": "analyst",   "name": "Analyst",   "role": "Stories, acceptance criteria, UAT",      "color": "#f2a33a" },
+    { "id": "admin",     "name": "Admin",     "role": "Flows, objects, permissions",            "color": "#12a37c" },
+    { "id": "developer", "name": "Developer", "role": "Apex, LWC, integrations",                "color": "#2f86e8" },
+    { "id": "qa",        "name": "QA",        "role": "Tests and verifies in the sandbox",      "color": "#e0559a" },
+    { "id": "reviewer",  "name": "Reviewer",  "role": "Final check before release",             "color": "#6b7a90" }
   ]
 }

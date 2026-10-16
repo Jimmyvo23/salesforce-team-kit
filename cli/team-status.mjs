@@ -29,11 +29,11 @@ const COMMANDS = {
     build: (v) => ({ type: 'task', agent: 'planner', id: v.id, title: v.title, owner: v.owner, state: v.state, notes: v.notes }),
   },
   approval: {
-    usage: 'approval --id <id> --summary <text> [--agents a,b]',
+    usage: 'approval --id <id> --summary <text> [--agents a,b] [--task <id>]',
     required: ['id', 'summary'],
-    optional: ['agents'],
+    optional: ['agents', 'task'],
     build: (v) => ({
-      type: 'approval_requested', agent: 'planner', id: v.id, summary: v.summary,
+      type: 'approval_requested', agent: 'planner', id: v.id, summary: v.summary, task: v.task,
       agents: v.agents === undefined ? undefined : String(v.agents).split(',').map((s) => s.trim()).filter(Boolean),
     }),
   },
@@ -54,6 +54,24 @@ const COMMANDS = {
     required: ['task', 'summary'],
     optional: [],
     build: (v) => ({ type: 'escalation', agent: 'planner', task: v.task, summary: v.summary }),
+  },
+  deploy: {
+    usage: 'deploy --agent <id> --org <alias> --result <passed|failed> [--tests <passed>/<total>] [--coverage <0-100>] [--task <id>]',
+    required: ['agent', 'org', 'result'],
+    optional: ['tests', 'coverage', 'task'],
+    build: (v) => ({ type: 'deploy', agent: v.agent, org: v.org, result: v.result, tests: v.tests, coverage: v.coverage, task: v.task }),
+  },
+  release: {
+    usage: 'release --task <id> --components <n> [--file <path>]',
+    required: ['task', 'components'],
+    optional: ['file'],
+    build: (v) => ({ type: 'release', agent: 'planner', task: v.task, components: v.components, file: v.file ?? `docs/release/${v.task}-changeset.md` }),
+  },
+  released: {
+    usage: 'released --task <id> [--note <text>]',
+    required: ['task'],
+    optional: ['note'],
+    build: (v) => ({ type: 'released', agent: 'planner', task: v.task, note: v.note }),
   },
 };
 
@@ -88,6 +106,11 @@ export function main(argv, opts) {
   if (values.progress !== undefined) {
     if (!/^\d+$/.test(values.progress)) return fail(`--progress must be an integer from 0 to 100. ${usage}`);
     values.progress = Number(values.progress);
+  }
+  for (const k of ['coverage', 'components']) {
+    if (values[k] === undefined) continue;
+    if (!/^\d+$/.test(values[k])) return fail(`--${k} must be a whole number. ${usage}`);
+    values[k] = Number(values[k]);
   }
 
   const envRoot = opts.env.CLAUDE_PROJECT_DIR;

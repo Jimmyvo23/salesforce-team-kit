@@ -18,7 +18,8 @@ const ok = (e) => validateEvent({ ...base, ...e }).ok;
 
 test('exports constants', () => {
   expect(EVENT_TYPES).toEqual(['agent_start', 'agent_stop', 'tool_use', 'status', 'task',
-    'approval_requested', 'approval_decided', 'handoff', 'escalation', 'snapshot']);
+    'approval_requested', 'approval_decided', 'handoff', 'escalation', 'snapshot',
+    'deploy', 'release', 'released', 'guard_blocked']);
   expect(AGENT_STATUSES).toEqual(['idle', 'working', 'blocked', 'awaiting_approval', 'done']);
   expect(TASK_STATES).toEqual(['todo', 'in_progress', 'in_review', 'done']);
   expect(APPROVAL_STATES).toEqual(['pending', 'approved', 'rejected', 'changes_requested']);

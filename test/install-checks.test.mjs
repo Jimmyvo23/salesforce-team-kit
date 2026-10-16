@@ -2,9 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { checkPrereqs } from '../lib/install/checks.mjs';
+import { checkPrereqs, isGitRepo, findSkill } from '../lib/install/checks.mjs';
 
 let root, target, home;
+let has;
 const addPlugin = (market, name) =>
   mkdirSync(join(home, '.claude', 'plugins', 'cache', market, name), { recursive: true });
 
@@ -15,11 +16,11 @@ beforeEach(() => {
   mkdirSync(join(target, '.git'), { recursive: true });
   mkdirSync(home, { recursive: true });
   addPlugin('superpowers-marketplace', 'superpowers');
-  addPlugin('claude-plugins-official', 'frontend-design');
+  has = () => true;
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-const run = (over = {}) => checkPrereqs({ targetDir: target, nodeVersion: 'v24.1.0', homeDir: home, ...over });
+const run = (over = {}) => checkPrereqs({ targetDir: target, nodeVersion: 'v24.1.0', homeDir: home, hasCommand: (c, a) => has(c, a), ...over });
 
 describe('checkPrereqs', () => {
   it('returns [] when everything is present', () => {
@@ -34,28 +35,11 @@ describe('checkPrereqs', () => {
     expect(m[0]).toMatch(/Node/);
     expect(m[0]).toMatch(/20/);
   });
-  it('flags a target that is not a Git repo', () => {
-    rmSync(join(target, '.git'), { recursive: true });
-    const m = run();
-    expect(m).toHaveLength(1);
-    expect(m[0]).toMatch(/git/i);
-  });
-  it('accepts .git as a file (worktree)', () => {
-    rmSync(join(target, '.git'), { recursive: true });
-    writeFileSync(join(target, '.git'), 'gitdir: /elsewhere\n');
-    expect(run()).toEqual([]);
-  });
   it('flags missing Superpowers only', () => {
     rmSync(join(home, '.claude', 'plugins', 'cache', 'superpowers-marketplace'), { recursive: true });
     const m = run();
     expect(m).toHaveLength(1);
     expect(m[0]).toMatch(/Superpowers/);
-  });
-  it('flags missing frontend-design only', () => {
-    rmSync(join(home, '.claude', 'plugins', 'cache', 'claude-plugins-official'), { recursive: true });
-    const m = run();
-    expect(m).toHaveLength(1);
-    expect(m[0]).toMatch(/frontend-design/);
   });
   it('does not accept a plain file named like the plugin', () => {
     rmSync(join(home, '.claude', 'plugins', 'cache', 'superpowers-marketplace'), { recursive: true });
@@ -63,13 +47,70 @@ describe('checkPrereqs', () => {
     writeFileSync(join(home, '.claude', 'plugins', 'cache', 'm', 'superpowers'), '');
     expect(run()).toHaveLength(1);
   });
-  it('treats a missing cache dir as both plugins missing', () => {
+  it('treats a missing cache dir as Superpowers missing', () => {
     rmSync(join(home, '.claude'), { recursive: true });
-    expect(run()).toHaveLength(2);
+    const m = run();
+    expect(m).toHaveLength(1);
+    expect(m[0]).toMatch(/Superpowers/);
+  });
+  it('flags a missing sf CLI with the install link', () => {
+    has = () => false;
+    const m = run();
+    expect(m).toHaveLength(1);
+    expect(m[0]).toMatch(/Salesforce CLI/);
+    expect(m[0]).toMatch(/developer\.salesforce\.com/);
+  });
+  it('flags a missing Code Analyzer when sf is present', () => {
+    has = (c, a) => !(a[0] === 'code-analyzer');
+    const m = run();
+    expect(m).toHaveLength(1);
+    expect(m[0]).toMatch(/sf plugins install code-analyzer/);
+  });
+  it('does not check git any more', () => {
+    rmSync(join(target, '.git'), { recursive: true });
+    expect(run()).toEqual([]);
   });
   it('returns one message per problem', () => {
-    rmSync(join(target, '.git'), { recursive: true });
     rmSync(join(home, '.claude'), { recursive: true });
-    expect(run({ nodeVersion: 'v16.0.0' })).toHaveLength(4);
+    has = () => false;
+    expect(run({ nodeVersion: 'v16.0.0' })).toHaveLength(3);
+  });
+});
+
+describe('isGitRepo', () => {
+  it('is true for a .git folder or file and false otherwise', () => {
+    expect(isGitRepo(target)).toBe(true);
+    rmSync(join(target, '.git'), { recursive: true });
+    expect(isGitRepo(target)).toBe(false);
+    writeFileSync(join(target, '.git'), 'gitdir: /elsewhere\n');
+    expect(isGitRepo(target)).toBe(true);
+  });
+  it('is true for a subfolder of a repo', () => {
+    const sub = join(target, 'sfdx', 'app');
+    mkdirSync(sub, { recursive: true });
+    expect(isGitRepo(sub)).toBe(true);
+    rmSync(join(target, '.git'), { recursive: true });
+    writeFileSync(join(target, '.git'), 'gitdir: /elsewhere\n');
+    expect(isGitRepo(sub)).toBe(true);
+  });
+});
+
+describe('findSkill', () => {
+  const skill = (dir, name) => {
+    mkdirSync(join(dir, '.claude', 'skills', name), { recursive: true });
+    writeFileSync(join(dir, '.claude', 'skills', name, 'SKILL.md'), '---\nname: x\n---\n');
+  };
+  it('finds a skill in the project, a parent folder or the home folder', () => {
+    expect(findSkill({ name: 'org', targetDir: target, homeDir: home })).toBeNull();
+    skill(home, 'org');
+    expect(findSkill({ name: 'org', targetDir: target, homeDir: home })).toBe(join(home, '.claude', 'skills', 'org'));
+    skill(root, 'org');
+    expect(findSkill({ name: 'org', targetDir: target, homeDir: home })).toBe(join(root, '.claude', 'skills', 'org'));
+    skill(target, 'org');
+    expect(findSkill({ name: 'org', targetDir: target, homeDir: home })).toBe(join(target, '.claude', 'skills', 'org'));
+  });
+  it('a folder without SKILL.md does not count', () => {
+    mkdirSync(join(home, '.claude', 'skills', 'empty'), { recursive: true });
+    expect(findSkill({ name: 'empty', targetDir: target, homeDir: home })).toBeNull();
   });
 });

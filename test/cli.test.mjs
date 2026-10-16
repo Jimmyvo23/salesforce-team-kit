@@ -91,7 +91,7 @@ test('handoff default file uses the normalized from id', () => {
   expect(lines()[0].file).toBe('.team/handoffs/T-004-tester.md');
 });
 
-const writeTeam = () => fs.copyFileSync(fileURLToPath(new URL('../templates/team.json', import.meta.url)), path.join(root, '.team', 'team.json'));
+const writeTeam = () => fs.copyFileSync(fileURLToPath(new URL('./fixtures/team-web.json', import.meta.url)), path.join(root, '.team', 'team.json'));
 
 test('unknown agent ids warn once on stderr but still write and exit 0', () => {
   writeTeam();

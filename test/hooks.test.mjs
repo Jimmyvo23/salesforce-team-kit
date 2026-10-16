@@ -203,9 +203,9 @@ test('CLI: runs when invoked through a symlink (path with a space)', () => {
 });
 
 // ---- template ----
-test('templates/hooks.json has the four events with quoted command paths', () => {
+test('templates/hooks.json has the five events with quoted command paths', () => {
   const h = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../templates/hooks.json', import.meta.url)), 'utf8'));
-  expect(Object.keys(h).sort()).toEqual(['PostToolUse', 'Stop', 'SubagentStart', 'SubagentStop']);
+  expect(Object.keys(h).sort()).toEqual(['PostToolUse', 'PreToolUse', 'Stop', 'SubagentStart', 'SubagentStop']);
   const cmd = (ev) => h[ev].flatMap((g) => g.hooks.map((x) => x.command));
   const want = (k) => `node "$CLAUDE_PROJECT_DIR/.team/bin/hooks/record.mjs" ${k}`;
   expect(cmd('SubagentStart')).toEqual([want('agent-start')]);

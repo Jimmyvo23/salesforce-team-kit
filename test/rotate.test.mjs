@@ -8,7 +8,7 @@ import { appendEvent, readEvents } from '../lib/events.mjs';
 import { buildState } from '../lib/state.mjs';
 import { rotateIfNeeded } from '../lib/rotate.mjs';
 
-const team = loadTeam(fileURLToPath(new URL('../templates/team.json', import.meta.url))).team;
+const team = loadTeam(fileURLToPath(new URL('./fixtures/team-web.json', import.meta.url))).team;
 const T0 = Date.parse('2026-10-05T12:00:00Z');
 const now = new Date(T0 + 60_000);
 let dir;

@@ -83,7 +83,7 @@ describe('mergeHooks', () => {
   it('keeps a user PreToolUse hook and adds Kit ones', () => {
     const s = { hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [userHook] }] } };
     const out = mergeHooks(s, kitHooks);
-    expect(out.hooks.PreToolUse).toEqual(s.hooks.PreToolUse);
+    expect(out.hooks.PreToolUse).toEqual([...s.hooks.PreToolUse, ...kitHooks.PreToolUse]);
     expect(out.hooks.SubagentStart).toEqual(kitHooks.SubagentStart);
     expect(kitCount(out)).toBe(4);
   });

@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { loadTeam } from '../lib/team.mjs';
 import { buildState, foldEvents } from '../lib/state.mjs';
 
-const loaded = loadTeam(fileURLToPath(new URL('../templates/team.json', import.meta.url)));
+const loaded = loadTeam(fileURLToPath(new URL('./fixtures/team-web.json', import.meta.url)));
 const team = loaded.team;
 const T0 = Date.parse('2026-10-05T12:00:00Z');
 let tick = 0;
@@ -49,7 +49,7 @@ test('closing the task moves a done owner to idle', () => {
   expect(agent(build(base), 'backend').status).toBe('done');
   const closed = build([...base, ev('task', { id: 'T-004', title: 'Pricing', owner: 'backend', state: 'done' })]);
   expect(agent(closed, 'backend').status).toBe('idle');
-  expect(closed.tasks).toEqual([{ id: 'T-004', title: 'Pricing', owner: 'backend', state: 'done', notes: '' }]);
+  expect(closed.tasks).toEqual([{ id: 'T-004', title: 'Pricing', owner: 'backend', state: 'done', notes: '', progress: 100, stage: 'Done' }]);
 });
 
 test('stale after 5 minutes of silence while working', () => {

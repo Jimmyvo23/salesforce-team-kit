@@ -7,7 +7,7 @@ labels: task
 
 **Task ID:** T-000
 
-**Owner:** planner | backend | frontend | tester | reviewer
+**Owner:** planner (Architect) | analyst (Analyst) | admin (Admin) | developer (Developer) | qa (QA) | reviewer (Reviewer)
 
 **Phase:**
 
