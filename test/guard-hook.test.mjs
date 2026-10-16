@@ -313,13 +313,13 @@ test('round 4 J-5: remapping an alias to another username is looked up again', (
   expect(`${r.stdout}${r.stderr}${everything()}`).not.toContain('SECRET-TOKEN');
 });
 
-test('round 5 K-1: argument patterns are expanded in the folder the command runs in', () => {
-  expect(runHook(bash('ls *')).status).toBe(0);
+test('round 6 L-1: patterns are data for known-safe programs and blocked behind others, in any folder', () => {
   fs.mkdirSync(path.join(project, 'tools'));
   fs.writeFileSync(path.join(project, 'tools', 'sf'), '');
   expect(runHook(bash('ls *')).status).toBe(0);
+  expect(runHook(bash('ls *', { cwd: path.join(project, 'tools') })).status).toBe(0);
   const r = runHook(bash('arch ./tools/s? data query -q x -o prod'));
   expect(r.status).toBe(2);
   expect(r.stderr).toMatch(/could not find every sf command/);
-  expect(runHook(bash('ls *', { cwd: path.join(project, 'tools') })).status).toBe(2);
+  expect(runHook(bash('f=f; arch ./tools/s$f data query -q x -o prod')).stderr).toMatch(/can't see what arch will run/);
 });

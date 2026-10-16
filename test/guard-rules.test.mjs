@@ -1,8 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { decide, checkSf, isSandboxUrl, readDefaultOrg, resolveDefaultOrg, cachedInstanceUrl, CACHE_TTL_MS, findSfdxProject, aliasUsername, globPaths } from '../lib/guard.mjs';
+import { decide, checkSf, isSandboxUrl, readDefaultOrg, resolveDefaultOrg, cachedInstanceUrl, CACHE_TTL_MS, findSfdxProject, aliasUsername } from '../lib/guard.mjs';
 
 const URLS = {
   uat: 'https://acme--uat.sandbox.my.salesforce.com',
@@ -577,8 +574,7 @@ describe('round 4 J-2: shell patterns in words', () => {
     }
   });
   test('a pattern that expands to sf counts for the backstop', () => {
-    // Round 5 K-1: argument patterns are expanded for real; this expander models a folder holding sf.
-    const c = ctx({ expandGlob: (w) => [w.replace(/[^/]*$/, 'sf')] });
+    const c = ctx();
     for (const s of ['arch /usr/local/bin/s? data query -o prod', 'arch /usr/local/bin/s[f] data query -o prod', 'arch {s,x}f data query -o prod',
       'arch /usr/local/bin/s{f,x} data query -o prod', 'arch /usr/local/bin/s(f) data query -o prod', 'arch =sf data query -o prod',
       'screen -dm ./bin/sf* data query -o prod', 'arch s{f..g} data query -o prod']) blocked(s, /could not find every sf command/, c);
@@ -682,70 +678,32 @@ describe('round 4: here-documents, case patterns and patterns packed in a word',
     blocked('echo $[1<<2]\nx=sf; $x data query -q x -o prod\n2]', /computed command name/);
   });
   test('patterns inside a word that is a command line, POSIX classes, and spaces inside command words', () => {
-    const c = ctx({ expandGlob: (w) => [w.replace(/[^/]*$/, 'sf')] });
+    const c = ctx();
     blocked("arch zsh -c '/usr/local/bin/s? data query -o prod'", /could not find every sf command/, c);
     blocked('arch /usr/local/bin/s[[:alpha:]] data query -o prod', /could not find every sf command/, c);
     blocked('sf display\\ org -o uat', /access token/);
   });
 });
 
-const finds = (names) => ({ expandGlob: (w) => names.filter((n) => new RegExp(`^${w.replace(/[.]/g, '\\.').replace(/\*/g, '.*').replace(/\?/g, '.')}$`).test(n)) });
-
-describe('round 5 K-1: argument patterns are checked by what they expand to', () => {
-  test('everyday patterns pass when nothing they match is sf', () => {
-    const c = ctx(finds(['a.txt', 'b.js', 'dist/x.js', 'README.md']));
-    for (const s of ['ls *', 'rm -rf dist/*', 'wc -l *.js', 'ls [a-z]*', 'npx vitest run test/*.test.mjs', 'git add force-app/**/*.xml']) allowed(s, c);
+describe('round 5 K-1, as ruled in round 6 L-1: argument patterns', () => {
+  test('a known-safe program\'s patterns are data, even where they could match sf', () => {
+    for (const s of ['ls *', 'rm -rf dist/*', 'wc -l *.js', 'ls [a-z]*', 'npx vitest run test/*.test.mjs', 'git add force-app/**/*.xml',
+      'ls /usr/local/bin/s?', 'cd dist && ls *', 'ls src/{a,b}.ts']) allowed(s);
   });
-  test('a pattern that matches a file named sf is a mention', () => {
-    const c = ctx(finds(['sf', 'a.txt']));
-    blocked('arch ./s? data query -o prod', /could not find every sf command/, ctx(finds(['./sf'])));
-    blocked('ls *', /could not find every sf command/, c);
-    blocked('arch s* data query -o prod', /could not find every sf command/, c);
-  });
-  test('a pattern the guard could not expand is a mention', () => {
-    blocked('arch ./s? data query -o prod', /could not find every sf command/, ctx({ expandGlob: () => null }));
-  });
-  test('braces and zsh =name do not need the file system', () => {
-    const c = ctx(finds([]));
-    blocked('arch {s,x}f data query -o prod', /could not find every sf command/, c);
-    blocked('arch =sf data query -o prod', /could not find every sf command/, c);
-    allowed('ls src/{a,b}.ts', c);
-  });
-  test('a line that changes folder keeps the could-match rule', () => {
-    const c = ctx(finds([]));
-    blocked('cd x && arch s? data query -o prod', /could not find every sf command/, c);
-    blocked('cd dist && ls *', /could not find every sf command/, c);
-    allowed('cd dist && ls *.cls', c);
+  test('a pattern behind an unmodelled program is blocked, whatever it matches', () => {
+    for (const s of ['arch ./s? data query -o prod', 'arch s* data query -o prod', 'arch {s,x}f data query -o prod', 'arch =sf data query -o prod',
+      'cd x && arch s? data query -o prod', 'arch ./bin/*.txt']) blocked(s, /could not find every sf command|can't see what arch will run/);
   });
   test('a pattern in the command name is still opaque', () => {
-    blocked('/usr/local/bin/s? data query -o prod', /hides the command from the guard/, ctx(finds([])));
-  });
-});
-
-describe('round 5 K-1: globPaths, the built-in expander', () => {
-  test('expands *, ?, [..] and ** against real folders', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sftk-glob-'));
-    try {
-      fs.mkdirSync(path.join(dir, 'bin', 'deep'), { recursive: true });
-      for (const f of ['bin/sf', 'bin/x.txt', 'bin/deep/sfdx.cmd', '.hidden']) fs.writeFileSync(path.join(dir, f), '');
-      expect(globPaths('bin/s?', { cwd: dir, homeDir: dir })).toEqual([path.join(dir, 'bin', 'sf')]);
-      expect(globPaths('bin/[r-t]f', { cwd: dir, homeDir: dir })).toEqual([path.join(dir, 'bin', 'sf')]);
-      expect(globPaths('*', { cwd: dir, homeDir: dir })).toEqual([path.join(dir, 'bin')]);
-      expect(globPaths('~/bin/*.txt', { cwd: '/', homeDir: dir })).toEqual([path.join(dir, 'bin', 'x.txt')]);
-      expect(globPaths('**/sfdx*', { cwd: dir, homeDir: dir })).toEqual([path.join(dir, 'bin', 'deep', 'sfdx.cmd')]);
-      expect(globPaths('nope/*', { cwd: dir, homeDir: dir })).toEqual([]);
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+    blocked('/usr/local/bin/s? data query -o prod', /hides the command from the guard/);
   });
 });
 
 describe('round 5 K-2: here-document bodies are data', () => {
   test('bodies are not words', () => {
-    const c = ctx(finds(['sf']));
-    allowed("git commit -m \"$(cat <<'EOF'\nAdd flow\n\n* bullet one\n* bullet two\nEOF\n)\"", c);
-    allowed('cat <<EOF > x.txt\nhello *\nEOF', c);
-    allowed("cat <<'EOF' > notes.md\n/usr/local/bin/s? and s\\f are data here\nEOF", c);
+    allowed("git commit -m \"$(cat <<'EOF'\nAdd flow\n\n* bullet one\n* bullet two\nEOF\n)\"");
+    allowed('cat <<EOF > x.txt\nhello *\nEOF');
+    allowed("cat <<'EOF' > notes.md\n/usr/local/bin/s? and s\\f are data here\nEOF");
   });
   test('the raw backstop, substitutions in unquoted bodies, and shells reading a body still block', () => {
     blocked("cat <<'EOF'\nrun sf data query later\nEOF", /could not find every sf command/);
@@ -769,13 +727,61 @@ describe('round 5 K-3: an incomplete command sf would finish with a prompt', () 
   });
 });
 
-describe('round 5 K-1: a line that may create files keeps the could-match rule', () => {
-  test('files written earlier on the line could be what a pattern matches', () => {
-    const c = ctx({ expandGlob: () => [] });
+describe('round 5 K-1, as ruled in round 6 L-1: files written earlier on the line', () => {
+  test('a pattern behind an unmodelled program is blocked, so a file made first on the line does not matter', () => {
     for (const s of ['printf x > sf; arch s? data query -q x -o prod', 'cp /usr/local/bin/s?? .; arch s? data query -o prod',
-      'ln -s /usr/local/bin/sf ./x && arch ./x data query -o prod; arch ./? data query -o prod']) blocked(s, /could not find every sf command/, c);
-    allowed('ls *', c);
-    allowed('wc -l *.js | sort', c);
-    allowed('git add force-app/**/*.xml', c);
+      'ln -s /usr/local/bin/sf ./x && arch ./x data query -o prod; arch ./? data query -o prod']) blocked(s, /could not find every sf command|can't see what/);
+    for (const s of ['ls *', 'wc -l *.js | sort', 'git add force-app/**/*.xml', 'touch a; ls *']) allowed(s);
+  });
+});
+
+describe('round 6 L-1: computed or pattern words behind a program the guard does not model', () => {
+  const sees = /can't see what|could not find every sf command/;
+  test('the open strings are blocked', () => {
+    for (const c of ['X=/usr/local/bin; arch $X/s? data query -q x -o prod', 'f=f; arch /usr/local/bin/s$f data query -q x -o prod',
+      "cat <<'EOF' | xargs -I{} sh -c '{}'\ns''f data query -q x -o prod\nEOF",
+      "sh -c 'ln -s /usr/local/lib/node_modules/@salesforce/c?i/bin/run \"$(printf s)f\"'; arch ./s? data query -q x -o prod"]) blocked(c, sees);
+  });
+  test('quoted text and patterns given to a known-safe program are data', () => {
+    for (const c of ['git commit -m "Add * support"', 'git commit -m "Update *.js files"', 'git add *.js', 'cp src/* out/', 'ls *.js 2>/dev/null',
+      'echo "5 * 3" > out.txt', 'cd dist && ls *', 'for f in *.js; do echo "$f"; done', 'export PATH=/x:$PATH; npm test',
+      'npx vitest run test/*.test.mjs', 'find . -name "*.tmp" -exec rm {} \\;', 'ls | xargs -I{} echo {}', "cat <<'EOF' | grep x\na\nEOF"]) allowed(c);
+  });
+  test('an unmodelled program with only plain words still runs', () => {
+    for (const c of ['screen -ls', 'arch -x86_64 npm test', 'make build', 'npm run lint']) allowed(c);
+  });
+  test('$, substitutions, $\'…\', ~user and unquoted patterns behind an unmodelled program are blocked', () => {
+    for (const c of ['arch "$BIN" data', 'arch `printf x`', 'arch $(printf x)', "arch $'\\x2fbin' data", 'arch ~other/x', 'arch ./bin/*', 'arch {a,b}',
+      'X=$Y git log', "./deploy.sh \"$ENV\""]) blocked(c, sees, ctx({ readScript: () => 'echo hi\n' }));
+  });
+  test('known-safe programs lose that status in the forms that can run a program', () => {
+    for (const c of ['git -c core.pager=x log "$X"', 'git config core.pager "$P"', 'git $SUB', 'tar -czf x.tgz *', 'find * -name x',
+      'npx vitest run --config "$C"', 'sort *.txt', 'git rebase -i *']) blocked(c, sees);
+  });
+  test('options that take a command as text are blocked even when the text is plain', () => {
+    for (const c of ["git rebase --exec 'X=f; /usr/local/bin/s$X data query -q x -o prod' main", 'git rebase --ex=make main', 'git rebase -x make main',
+      'git grep -O less x', 'git clone --upload-pack=x url', 'git push --receive-pack=x', "git submodule foreach 'make'", 'git bisect run make',
+      'git filter-branch --tree-filter x', 'tar -cf x.tar --to-command=x src', 'tar xIf zstd a.tar', 'tar -cf x.tar --checkpoint-act=exec=x src',
+      'sort --compress-program=x a', 'rg --pre x y']) blocked(c, /runs a command the guard can't check/);
+    for (const c of ['git submodule update --init', 'git bisect start', 'git cherry-pick -x abc', 'git fetch -u', 'tar -xJf a.tar.xz']) allowed(c);
+  });
+  test('trap, watch and flock -c text is checked as a command line', () => {
+    for (const c of ["trap 'X=f; /usr/local/bin/s$X data query -q x -o prod' EXIT", 'watch /usr/local/bin/s\\? data query -q x -o prod',
+      "flock /tmp/l -c 'X=f; /usr/local/bin/s$X data query -q x -o prod'"]) blocked(c, /hides the command|computed command name|pattern in the command name/);
+    blocked("watch -n 5 'sf data query -q x -o prod'", /"prod" is not listed/);
+    for (const c of ["trap 'rm -f /tmp/x' EXIT", 'trap - EXIT', 'watch -n 5 git status', 'flock /tmp/l -c "npm test"']) allowed(c);
+    for (const c of ['git log "$X"', 'git -C sub status', 'tar -czf x.tgz src/*', 'rg x src/*', 'sort src/*.txt']) allowed(c);
+  });
+  test('xargs and find -exec must run a known-safe program, since their arguments come from data', () => {
+    for (const c of ["ls /usr/local/bin/s? | xargs -I{} {} data query -q x -o prod", "printf '/usr/local/bin/s%s data query -q x -o prod' f | xargs env",
+      "find /usr/local/bin -name 's?' -exec {} data query -q x -o prod \\;", 'find . -exec sh -c "x" \\;', 'echo a | parallel echo']) blocked(c, /runs .* with arguments/);
+  });
+  test('a here-document or here-string fed to an unmodelled program is blocked', () => {
+    for (const c of ["python3 <<'EOF'\nprint(1)\nEOF", 'bc <<< "1+2"', "cat <<'EOF' | node\nx\nEOF"]) blocked(c, /here-document/);
+    for (const c of ["cat <<'EOF' > x.txt\nhello *\nEOF", 'git commit -F - <<EOF\nmsg\nEOF', "cat > x.json <<'EOF'\n{}\nEOF\nnode s.js"]) allowed(c);
+  });
+  test('alias definitions are opaque', () => {
+    blocked("alias x='/usr/local/bin/s?'\nx data query -q x -o prod", /hides the command/);
+    allowed('alias');
   });
 });
