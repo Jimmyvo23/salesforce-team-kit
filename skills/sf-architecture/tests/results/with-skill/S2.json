@@ -4,19 +4,19 @@
   "pass": true,
   "items": [
     {
-      "item": "Recommends a before-save record-triggered flow (or formula field) and says why it beats after-save or Apex",
+      "item": "Recommends a before-save record-triggered flow (or formula field if stored value not needed) and says why it beats after-save or Apex",
       "met": true,
-      "evidence": "\"a before-save flow is the right tool. It needs no extra DML and no second save.\" and \"An after-save flow would re-run the whole save order on the same record. Apex would add code and tests for no gain.\""
+      "evidence": "\"Recommendation (provisional): before-save record-triggered flow\"; \"A before-save flow needs no extra DML and no second save. An after-save flow or Apex trigger would re-run the save order on the same record. Apex adds code and tests for no gain.\""
     },
     {
       "item": "Notes that a before-save flow cannot create or update other records",
       "met": true,
-      "evidence": "\"Before-save flows can't touch other records. That doesn't matter here, because nothing else is written.\""
+      "evidence": "\"Limits of before-save: it can only change `$Record`. It can't touch other records, and this change doesn't need that.\""
     },
     {
       "item": "Says to check existing automation on Opportunity first",
       "met": true,
-      "evidence": "\"Automation inventory (not run yet)... Please run these against `uat` and send me the results\""
+      "evidence": "\"Automation inventory (run these against `uat`)\" with queries for flows, Apex triggers, workflow rules, and validation rules on Opportunity; \"the recommendation below is provisional until you run the inventory.\""
     }
   ]
 }

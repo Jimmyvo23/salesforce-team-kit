@@ -6,11 +6,13 @@
 |---|---|---|
 | Set fields on the **same record** that is being saved | **Before-save record-triggered flow** (fast field updates), or the existing trigger handler's before logic if the object already uses Apex | Needs no extra DML and no second save. An after-save flow or after trigger has to update the record again, which runs the whole save order a second time. |
 | A value derived only from fields on the record, needed only for display or reports | **Formula field** (no stored value) | No automation at all. You can't index it or use it in some filters, and it is limited by compile size. |
-| Create, update or delete **other** records, send email, call actions, subflows | **After-save record-triggered flow** (or Apex after trigger) | A before-save flow **cannot** create, update or delete other records. It allows only Assignment, Decision, Get Records and Loop, plus changes to `$Record`. |
-| Complex logic, many objects, savepoints or partial success, heavy volume, reuse from other code | **Apex**: one trigger per object, with a handler class | Flow has no `Database.setSavepoint` or `rollback` and no partial-success DML. |
+| Create, update or delete **other** records, send email, call actions, subflows | **After-save record-triggered flow** (or Apex after trigger) | A before-save flow **cannot** create, update or delete other records. It has no actions or subflows. It changes only `$Record` (no Update Records element needed) and can block the save with a Custom Error element (Winter '24). |
+| Complex logic, many objects, savepoints or partial success, heavy volume, reuse from other code | **Apex**: one trigger per object, with a handler class | Record-triggered flows can't set savepoints, and Flow has no partial-success DML. |
 | Medium complexity inside a simple flow | Flow that calls **invocable Apex** | Keeps the entry point declarative and the hard part testable. |
 | Callout to an external system | Asynchronous only (see Integration) | You can't make a callout before the transaction commits. |
 | Work later or after commit | Flow **Run Asynchronously** or a scheduled path, Queueable, or Platform Event | The Run Asynchronously path runs in its own transaction after the commit. |
+
+Run context: record-triggered flows run in system context without sharing, and Apex triggers run in system mode (they bypass the user's sharing, field-level security and object permissions; set sharing on the handler class).
 
 Choose **one entry point per object**. If the object already has an Apex trigger with a handler, add the logic to the handler. If it is flow-based, add a flow with an explicit `TriggerOrder`, or extend an existing flow. Avoid mixing many flows and triggers that write the same fields.
 
@@ -86,6 +88,7 @@ Older documentation and many answers quote 5,000 compiled characters. Check the 
   - a scheduled flow or batch job when inputs live on other records.
 
   A stored value can also be indexed and reported on.
+- A stored value calculated at save time goes stale when inputs are time-based (`TODAY()`, `NOW()`) or live on other records. Add a scheduled recalculation (scheduled flow or batch Apex). Verify in the sandbox that input formula fields read current values inside the before-save flow before relying on them.
 
 ## Lookup vs master-detail
 
@@ -107,6 +110,9 @@ Older documentation and many answers quote 5,000 compiled characters. Check the 
   - **Sharing recalculation.** Changing the parent's owner, or the sharing of a master-detail parent, recalculates access for every child, which can take a long time.
   - Roll-up recalculations on a very large parent.
   - Slow related lists.
+- **Ownership skew**: one user owning more than 10,000 records of an object. Owner changes, role moves and group changes for that user recalculate sharing for all of them.
+  - Spread ownership across users where the business allows it. Never "fix" parent skew by making one integration user own millions of records.
+  - If one integration owner can't be avoided: give that user **no role**, or a role at the top of the hierarchy in its own branch; keep the user out of public groups used as sharing-rule sources; don't move the user or change record owners in bulk (if you must, defer sharing calculation).
 - Mitigations:
   - Use a lookup instead of master-detail for skewed parents.
   - Spread children across several parents if the business allows it.

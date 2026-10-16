@@ -42,8 +42,9 @@ The inventory section comes **before** the recommendation in your answer, not as
 
 Say **why** the choice beats the alternatives, in one or two lines:
 - **Before-save vs after-save, same record:** before-save needs no extra DML and no second save. An after-save update re-runs the whole save order on the same record. Apex adds code and tests for no gain.
-- **What before-save can't do:** a before-save flow **cannot create, update or delete other records**. It allows only Assignment, Decision, Get Records and Loop on `$Record`. So a cross-object update is always after-save (or Apex), and you say that this is the reason.
+- **What before-save can't do:** a before-save flow **cannot create, update or delete other records**. It has no actions and no subflows. It changes only `$Record` (values are applied without an Update Records element) and can block the save with a Custom Error element. So a cross-object update is always after-save (or Apex), and you say that this is the reason.
 - **Existing entry point:** if the inventory shows an Apex trigger on the object, add to its handler and never add a second trigger, because the order between triggers is not guaranteed. If the object is flow-based, give the new flow an explicit `TriggerOrder`.
+- **Run context:** record-triggered flows run in system context without sharing, and Apex triggers run in system mode. Say so when the change writes records the user can't edit.
 - Never add Workflow Rules or Process Builder. Both are retired.
 
 Details and edge cases are in `references/decision-rules.md`.
@@ -80,7 +81,7 @@ Before proposing a formula that combines other formulas, warn about **compile si
 
 - The compiled size **includes the compiled size of every formula field it references**. Fifteen formula inputs carry fifteen compiled sizes.
 - Splitting into helper formulas does **not** reduce compile size. It helps only with the character limit.
-- Offer the fallback up front: a **stored Number field calculated by a before-save flow**, or by Apex or a batch job when the inputs are on other records. A stored value can also be indexed and filtered.
+- Offer the fallback up front: a **stored Number field calculated by a before-save flow**, or by Apex or a batch job when the inputs are on other records. A stored value can also be indexed and filtered. If the inputs are time-based (`TODAY()`, `NOW()`) or come from other records, a save-time calculation goes stale, so add a scheduled recalculation (scheduled flow or batch). Verify in the sandbox that the input formulas read current values in the before-save context.
 
 ## Relationships and data volume
 
@@ -92,6 +93,7 @@ Compare lookup and master-detail on four points:
 
 Then check volume:
 - **Data skew**: more than about **10,000 children on one parent**. It causes parent **record locking** (`UNABLE_TO_LOCK_ROW` during loads and integrations) and long **sharing recalculation** when the parent's owner or sharing changes. Very large parents also slow roll-up recalculation.
+- **Ownership skew**: more than **10,000 records of one object owned by one user**. Don't solve parent skew by giving everything to one integration user. If one integration owner can't be avoided, give that user **no role** (or a role at the top of the hierarchy in its own branch, outside the groups used for sharing rules), and avoid owner changes and moving that user, because they trigger sharing recalculation.
 - Give **one recommendation with the reason**. With millions of children and parents over 10,000, choose a lookup, compute roll-ups asynchronously, and load grouped by parent.
 
 ## Design output (in this order)
