@@ -107,6 +107,8 @@ Each task's progress (a percentage and a stage) is worked out from these events:
 
 ## The org guard
 
+The guard is a seatbelt against honest mistakes, not a sandbox: the real protection is that no production org is authorised on the machine the team runs on.
+
 Before every Bash command, `.team/bin/hooks/guard-org.mjs` checks each `sf` call in it, including chained commands, `$(…)`, `bash -c "…"`, `eval`, commands piped into a shell, `sudo`/`env`/`nohup`-style wrappers and `xargs`/`find -exec`. It finds the target org from `-o`/`--target-org`, `-v`/`--target-dev-hub`, `--from-org` or `--source-org` (the deprecated `-u`/`--targetusername` and `--targetdevhubusername`, the plugin aliases `--fromorg`, `--target-hub-org`, `--dev-hub-org`, `--sourceorg` and `--devops-center-username`, and `-c` on `sf project deploy pipeline`, count too), or, the way `sf` does, from `SF_TARGET_ORG` (or `SFDX_DEFAULTUSERNAME`), then the default org of the SFDX project the command runs in, then your global default org. If neither a flag nor a default org exists, the command is blocked. A default Dev Hub (`SF_TARGET_DEV_HUB` or `target-dev-hub`) must also be a listed sandbox when a command has no org flag. If the new `.sf` and the legacy `.sfdx` config, or the `SF_` and `SFDX_` variables, name different default orgs, a command without `-o` is blocked. As in `sf`, `.sf/config.json` counts only `target-org`/`target-dev-hub` and `.sfdx/sfdx-config.json` counts both those and the legacy names; a legacy name inside `.sf/config.json` (which `sf` ignores) also blocks a command without `-o`. `sf org create snapshot` without `-v` also checks the default Dev Hub. Write each short flag on its own: an org flag inside a group such as `-to prod` is blocked. Any other long flag that mentions org, hub or username is blocked unless the guard knows it is not an org flag. `sf` accepts command words in any order (`sf display org` is `sf org display`) and offers to finish an incomplete command, so every rule compares the command words in any order, and a rule's words that are typed only in part (`sf display -o uat`) count as that command.
 
 - The alias must be listed under `orgs.sandbox` in `.team/team.json`.
@@ -142,6 +144,7 @@ A block shows the reason to the agent and puts a "Guard blocked" line in the off
 - **Agents may skip status calls.** The hooks still record when each agent starts and stops and which files and commands it touches.
 - **Hook text is not a redaction layer.** Do not treat the log as private.
 - **One kit per project.** This kit and `agent-team-kit` both install into `.team/` and `.claude/agents/`.
+- **Known gaps.** The guard does not model every shell trick. A command name built from a variable or wildcard behind a program the guard doesn't recognise, quoted text that another program runs later (git aliases, ssh, tmux, osascript), interpreters, and renamed sf binaries can get past it. In the other direction, a `*` inside quoted text on a line that may create files (for example `git commit -m "Add * support"`) is blocked; rephrase it.
 
 ## Development
 
