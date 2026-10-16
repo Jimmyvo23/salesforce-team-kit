@@ -1,9 +1,9 @@
 {
-  "name": "agent-team-kit",
+  "name": "salesforce-team-kit",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Installs a five-role Claude Code team plus a local office dashboard into a project.",
+  "description": "Installs a six-role Salesforce Claude Code team, a sandbox-only org guard and a local office dashboard into an SFDX project.",
   "engines": {
     "node": ">=20"
   },

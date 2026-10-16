@@ -1,13 +1,15 @@
-# agent-team-kit
+# salesforce-team-kit
 
-A kit that installs a five-role Claude Code team into a project, plus a local "office" dashboard that shows who is doing what.
+A kit that installs a six-role Salesforce team for Claude Code into an SFDX project, plus a local "office" dashboard that shows who is doing what. It is a sibling of `agent-team-kit` (the web-app team) and shares its engine.
 
-The roles are Planner (the main Claude Code session), Backend, Frontend, Tester and Reviewer. A human approver (Jimmy in the examples) approves every Work Order before anyone builds. The kit adds:
+The roles are the Architect (the main Claude Code session), Analyst, Admin, Developer, QA and Reviewer. Jimmy approves every Work Order before anyone builds, and deploys to production himself with change sets. Agents only ever work in sandboxes.
 
-- four subagent files (Backend, Frontend, Tester, Reviewer) in `.claude/agents/`
-- Planner rules and a Work Order template in `.team/`
-- hooks that record what the agents do to a local log
-- a small command, `team-status`, that agents use to report status, tasks and approvals
+The kit adds:
+
+- five subagent files (Analyst, Admin, Developer, QA, Reviewer) in `.claude/agents/`
+- Architect rules, a Work Order template and a change set template in `.team/`
+- hooks that record what the agents do, and an org guard that blocks `sf` commands aimed at anything but a listed sandbox
+- a small command, `team-status`, that agents use to report status, tasks, approvals, deploys and releases
 - the office dashboard, which you run from this repo and point at a project
 
 The design is in `docs/superpowers/specs/`.
@@ -15,115 +17,123 @@ The design is in `docs/superpowers/specs/`.
 ## Prerequisites
 
 - Node 20 or newer, and Git
-- Claude Code
-- The Superpowers and frontend-design plugins, installed in Claude Code with `/plugin`
-- The target project must be a Git repository
+- Claude Code with the Superpowers plugin (`/plugin`)
+- The Salesforce CLI (`sf`) and Code Analyzer (`sf plugins install code-analyzer`)
+- At least one sandbox authorised in the `sf` CLI. **Do not authorise production on the machine the team runs on.** The guard does not rely on this, but it is the strongest protection.
 
-The installer checks Node, that the target is a Git repository, and the two plugins. It stops with a plain message if something is missing. It does not check that Git or Claude Code are installed.
+The installer checks Node, Superpowers, `sf` and Code Analyzer and stops with a plain message if something is missing. If the project is not a Git repository, it offers to run `git init` (with `--yes` it runs it without asking).
 
 ## Install, update and uninstall
 
 Run these from this repo. Paths with spaces need quotes.
 
 ```
-node install.mjs --target ../CookNeighbour
+node install.mjs --target "../Salesforce Automation Clean up 2026/automation-cleanup"
 ```
 
-It prints every change it will make and asks `Apply these changes? (y/n)`. Add `--yes` to skip that question. Nothing is written until you say yes.
+It prints every change it will make and asks `Apply these changes? (y/n)`. Add `--yes` to skip that question.
 
 What it puts in the project:
 
-- `.claude/agents/` with the four subagent files
-- `.claude/settings.json` with four hooks added, for subagent start and stop, file edits and commands, and the end of each main-session turn (your existing settings and hooks are kept; the first copy of your file is saved as `settings.json.bak`)
-- `.team/bin/` with `team-status.mjs`, the hook script and their helpers
-- `.team/planner.md`, `.team/work-order-template.md`, `.team/handoffs/handoff-template.md`
-- `.team/team.json` (the team and the approver; edit it to rename people)
-- `.team/kit-manifest.json` (what the kit installed, so update and uninstall are safe)
-- a marked "Team" section in `CLAUDE.md` and a marked block in `.gitignore`
+- `.claude/agents/` with the five subagent files
+- `.claude/settings.json` with five hooks (subagent start and stop, file edits and commands, the end of each main-session turn, and the org guard before every Bash command) and one deny rule, `Bash(sf project deploy quick:*)`. Your own settings are kept; the first copy of your file is saved as `settings.json.bak`.
+- `.team/bin/` with `team-status.mjs`, the hook scripts and their helpers
+- `.team/planner.md`, `.team/work-order-template.md`, `.team/changeset-template.md`, `.team/handoffs/handoff-template.md`
+- `.team/team.json` (the team, the approver, `orgs.sandbox` and `orgSkill`; edit it for your project)
+- `.team/kit-manifest.json`, a marked "Team" section in `CLAUDE.md` and a marked block in `.gitignore`
+
+Then edit `.team/team.json`:
+
+```json
+"orgSkill": "nitro-salesforce",
+"orgs": { "sandbox": ["sandbox"] }
+```
+
+`orgs.sandbox` lists the `sf` aliases the team may use. `orgSkill` names a skill with knowledge about your org; the installer warns if it can't find it.
 
 Update, from this repo:
 
 ```
 git pull
 npm ci
-node install.mjs --target ../CookNeighbour
+node install.mjs --target "../my-project"
 ```
-
-Re-running the installer updates the installed files. Files you have not touched are updated, and kit files that a newer kit no longer ships are removed (unless you changed them). If you edited a kit file, the installer shows a short diff and asks before replacing it (`--yes` never replaces a file you customised). The next `npm run office` rebuilds the dashboard by itself when its sources changed.
 
 Uninstall:
 
 ```
-node install.mjs --target ../CookNeighbour --uninstall
+node install.mjs --target "../my-project" --uninstall
 ```
 
-This removes the kit's files, hooks and marked blocks. It keeps `.team/team.json`, your handoffs in `.team/handoffs/`, `.claude/settings.json.bak` and the activity logs (`.team/events*.jsonl`). The whole marked block is removed from `.gitignore`, so the logs, `agent-status.json`, `.superpowers/` and `.claude/settings.json.bak` stop being git-ignored. Delete them or ignore them yourself before committing.
-
-The installer refuses to run if `.team` or `.claude/settings.json` is a symlink, and it never writes or deletes through other symlinks. If `settings.json` is not valid JSON it stops without changing anything.
+This removes the kit's files, hooks, the deny rule and the marked blocks. It keeps `.team/team.json`, your handoffs in `.team/handoffs/`, `.claude/settings.json.bak` and the activity logs.
 
 ## Running the office
 
 ```
 npm ci
-npm run office -- --project ../CookNeighbour
+npm run office -- --project "../my-project"
 ```
 
-Relative paths are taken from the folder where you run the command. Options: `--project <path>` (required, must contain `.team/`) and `--port <1-65535>` (default 4317). The first run, and the first run after the dashboard sources change, builds the dashboard (`npm run build`), then it prints `Office is open at http://127.0.0.1:4317` and opens your browser. Press Ctrl+C to stop. If the port is busy, use `--port`.
+It prints `Office is open at http://127.0.0.1:4317` and opens your browser. The dashboard binds to `127.0.0.1` only.
 
-The dashboard binds to `127.0.0.1` only, so nobody else on your network can see it. It reads `.team/events.jsonl` every 3 seconds and also writes `agent-status.json` at the project root (git-ignored).
+## How a task runs
 
-## How the Planner workflow runs
-
-1. You talk to Claude Code in the project. The main session is the Planner and follows `.team/planner.md`.
-2. Before a batch of work, each agent that will work submits a plan summary of 100 words or fewer. The Planner combines them into a Work Order.
-3. The Planner records one approval per agent per Work Order (for example `WO-3-backend` and `WO-3-frontend`) and asks you to approve, reject or approve with changes. The office shows these at the approver's desk.
-4. After you approve, the builders work on a feature branch and open a pull request. The Tester verifies and the Reviewer is the final gate. The Planner merges and closes the issue.
-5. Each agent writes `.team/handoffs/<task-id>-<agent id>.md` (for example `T-004-backend.md`, then `T-004-tester.md`) when it finishes, so the next agent does not need the story repeated. The Reviewer reads both.
-6. After two failed rounds on one task, the Planner escalates to you. The escalation clears on the next `task` event for that task id.
+1. You talk to Claude Code in the project. The main session is the Architect and follows `.team/planner.md`.
+2. The Analyst writes the story and acceptance criteria to `docs/stories/<task-id>.md`.
+3. The Architect runs an automation inventory on the affected objects, decides declarative or code, and writes `docs/design/<task-id>.md`.
+4. Admin and Developer each send a plan summary of 100 words or fewer. The Architect records one approval per agent per Work Order (for example `WO-3-admin` and `WO-3-developer`, each with `--task`) and asks you to approve, reject or approve with changes.
+5. After you approve, the builders retrieve, build on a feature branch and deploy to the sandbox. QA tests against the acceptance criteria and can block. The Reviewer is the final gate.
+6. Each agent writes `.team/handoffs/<task-id>-<agent id>.md` when it finishes, so the next agent does not need the story repeated.
+7. The Architect writes the change set checklist to `docs/release/<task-id>-changeset.md` and records `team-status release`. You build the change set in the sandbox, upload it and deploy in production. Then the Architect records `team-status released`, merges and closes the task.
+8. After two failed rounds on one task, the Architect escalates to you. The escalation clears on the next `task` event for that task id.
 
 ## team-status reference
 
-Agents and the Planner use it from the project root. Every call appends one line to `.team/events.jsonl`.
-
-```
-node .team/bin/team-status.mjs status --agent backend --status working --task T-004 --progress 40 --next "Write tests"
-```
+Agents and the Architect use it from the project root. Every call appends one line to `.team/events.jsonl`.
 
 | Subcommand | Flags |
 |---|---|
 | `status` | `--agent <id> --status <status> [--task <id>] [--progress <0-100>] [--next <text>] [--reason <text>]` |
 | `task` | `--id <id> --title <text> --owner <agent> --state <state> [--notes <text>]` |
-| `approval` | `--id <id> --summary <text> [--agents a,b]` |
+| `approval` | `--id <id> --summary <text> [--agents a,b] [--task <id>]` |
 | `decide` | `--id <id> --state <state> [--note <text>]` |
 | `handoff` | `--from <agent> --to <agent> --task <id> [--file <path>]` (default file `.team/handoffs/<task>-<from>.md`) |
 | `escalate` | `--task <id> --summary <text>` |
+| `deploy` | `--agent <id> --org <alias> --result <passed\|failed> [--tests <passed>/<total>] [--coverage <0-100>] [--task <id>]` |
+| `release` | `--task <id> --components <n> [--file <path>]` (default file `docs/release/<task>-changeset.md`) |
+| `released` | `--task <id> [--note <text>]` |
 
-Values:
+Each task's progress (a percentage and a stage) is worked out from these events: 5% to do, 20% waiting for approval, 30–60% building, 65% in the sandbox, 80% QA passed, 90% review passed, 95% change set ready, 100% released. Work sent back by QA or the Reviewer moves it down again.
 
-- Agent status: `idle`, `working`, `blocked`, `awaiting_approval`, `done`. Use `--reason` when blocked.
-- Task state: `todo`, `in_progress`, `in_review`, `done`.
-- Approval state (for `decide`): `approved`, `rejected`, `changes_requested`.
+## The org guard
 
-Ids are matched ignoring case, so `Backend` and `backend` are the same desk. If `.team/team.json` exists and an `--agent`, `--owner`, `--from`, `--to` or `--agents` id is not on the team, the CLI prints one warning line (a likely typo) but still writes the event.
+Before every Bash command, `.team/bin/hooks/guard-org.mjs` checks each `sf` call in it, including chained commands, `$(…)`, `bash -c "…"`, `eval`, commands piped into a shell, `sudo`/`env`/`nohup`-style wrappers and `xargs`/`find -exec`. It finds the target org from `-o`/`--target-org`, `-v`/`--target-dev-hub`, `--from-org` or `--source-org`, or from the project's or your global default org.
 
-An escalation shows on the needs-you sign until the next `task` event for that task id; the escalation clears then, whatever the new state.
+- The alias must be listed under `orgs.sandbox` in `.team/team.json`.
+- Its instance URL must be a sandbox domain (looked up once a day with `sf org display` and cached in `.team/org-cache.json`; the access token in that output is never printed or stored).
+- Always blocked:
+  - quick deploys (`sf project deploy quick`, `sf deploy metadata quick`)
+  - anything that prints tokens: `sf org display`, `sf org open --url-only` (or `-r`), `sf org list --json`
+  - logins and logouts (`sf org login`, `sf org logout`, and the legacy `sf auth`, `sf login`, `sf logout`)
+  - changing the default org or aliases: `sf config set` or `unset` of `target-org` or `target-dev-hub`, and `sf alias set` or `unset`
+  - the legacy `sfdx` command
+- The guard fails closed. It also blocks:
+  - `sf` arguments built at run time (any `$` or backtick in an `sf` argument, including inside a SOQL string), and command names built at run time (`$SF …`)
+  - shells nested more than three deep, commands piped into a shell (`… | bash`), and scripts that contain `sf` commands
+  - any line where it finds more `sf <word>` mentions than `sf` commands it could check, for example `echo "run sf deploy"` or a commit message that mentions `sf deploy`. Rephrase the text or run the `sf` command on its own.
+  - every `sf` org command when it cannot find the project folder or read `.team/team.json`
+- `xargs … sf …` and `find -exec … sf …` are blocked; run those `sf` commands directly.
+
+A block shows the reason to the agent and puts a "Guard blocked" line in the office.
 
 ## Known limits
 
-- **Hook data.** What the hooks receive was captured with Claude Code 2.1.290 (`docs/decisions/S-0-hook-input.md`). Other versions may differ. Parallel subagents were not tested; activity that cannot be tied to a known agent is shown as "team activity".
-- **Agents may skip status calls.** The status duty is an instruction, not something enforced. The hooks still record when each agent starts and stops and which files and commands it touches, so the office shows those facts either way.
-- **Hook text is not a redaction layer.** The log shows a short action such as "Editing app.ts" or "Running git status". It keeps only the program name and a second word when that word looks safe, but a command like `echo SECRET` would still show as `Running echo SECRET`. Do not treat the log as private.
-- **Logs stay local.** `.team/events*.jsonl` and `agent-status.json` are git-ignored. The log is rotated while the office is running, when it passes about 5 MB.
-- **One approval id per agent per Work Order.** The Planner records `WO-3-backend` and `WO-3-frontend` separately so each agent has its own decision.
-- **The Reviewer comments rather than approves.** With a single GitHub account an author cannot approve their own pull request, so Reviewer verdicts are pull request comments.
-
-## Repo decisions
-
-- **Public repo.** GitHub Free only enforces branch protection on public repos, so this repo is public. Commit nothing personal or secret.
-- **Branch protection on `main`.** Changes need a pull request and a passing `ci` check. Force pushes and deletions are blocked. Required approvals are 0 because this is a single-account repo and an author cannot approve their own pull request. Reviewer verdicts are pull request comments.
-- **Plain CSS with tokens instead of Tailwind.** The dashboard styles use CSS custom properties, which keeps the build small and the themes easy to change.
-- **`@types/node` as a dev dependency.** The end-to-end tests are type-checked with it.
-- **No dependencies in installed code.** Everything copied into a project (`lib/`, `cli/`, `hooks/`) uses Node built-ins only.
+- **The guard is a seatbelt, not a sandbox.** An agent calling the Salesforce REST API directly (for example with `curl`) would get past it. The agent rules forbid this and the Reviewer checks for it. `npm run` scripts that call `sf` are not inspected.
+- **Agents can edit the guard's inputs.** `.team/team.json` and `.team/org-cache.json` are ordinary project files. The guard trusts a cached instance URL for 24 hours, so an agent that rewrote both files could get a non-sandbox alias past it. Not authorising production on this machine is what closes this gap.
+- **Hook data.** What the hooks receive was captured with Claude Code 2.1.290 (`docs/decisions/S-0-hook-input.md`); the guard's block behaviour was checked as described in `docs/decisions/S-1-guard-in-claude-code.md`.
+- **Agents may skip status calls.** The hooks still record when each agent starts and stops and which files and commands it touches.
+- **Hook text is not a redaction layer.** Do not treat the log as private.
+- **One kit per project.** This kit and `agent-team-kit` both install into `.team/` and `.claude/agents/`.
 
 ## Development
 
@@ -134,5 +144,3 @@ npm run typecheck
 npm test
 npm run test:e2e
 ```
-
-Requires Node 20 or newer.
