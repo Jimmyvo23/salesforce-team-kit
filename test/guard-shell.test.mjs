@@ -115,3 +115,10 @@ test('fd numbers before redirects are dropped', () => {
   expect(splitCommands('sf org list 2>&1')).toEqual([['sf', 'org', 'list']]);
   expect(splitCommands('echo hi 2>/dev/null')).toEqual([['echo', 'hi']]);
 });
+
+test('shells, eval and xargs behind wrapper options are unwrapped', () => {
+  expect(unwrap(['sudo', '-u', 'root', 'bash', '-c', 'sf org list -o prod'])).toEqual({ kind: 'inline', text: 'sf org list -o prod' });
+  expect(unwrap(['nice', '-n', '5', 'eval', 'sf', 'org', 'list'])).toEqual({ kind: 'inline', text: 'sf org list' });
+  expect(unwrap(['sudo', '-u', 'root', 'xargs', 'sf', 'org', 'list'])).toEqual(
+    { kind: 'opaque', what: 'xargs', text: 'sf org list', always: false });
+});
