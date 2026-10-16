@@ -28,7 +28,7 @@ test('approvals for other tasks do not count', () => {
 });
 
 test('all approved: 30% plus 30% of the builders\' average progress', () => {
-  expect(p(acc({ approvals: approved }))).toEqual({ progress: 30, stage: 'Building' });
+  expect(p(acc({ approvals: approved }))).toEqual({ progress: 30, stage: 'Approved' });
   const agents = [
     { id: 'admin', currentTask: 'T-012', progress: 60 },
     { id: 'developer', currentTask: 'T-012', progress: 40 },
@@ -36,6 +36,11 @@ test('all approved: 30% plus 30% of the builders\' average progress', () => {
     { id: 'admin2', currentTask: 'T-099', progress: 100 },
   ];
   expect(p(acc({ approvals: approved }), agents)).toEqual({ progress: 45, stage: 'Building' });
+});
+
+test('sent back with no builders yet shows Back to build at 30%', () => {
+  const a = acc({ approvals: approved, taskTrack: { 'T-012': { ...emptyTrack(), back: true } } });
+  expect(p(a, [])).toEqual({ progress: 30, stage: 'Back to build' });
 });
 
 test('milestones in order', () => {
