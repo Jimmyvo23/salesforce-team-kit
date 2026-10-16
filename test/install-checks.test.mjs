@@ -85,6 +85,14 @@ describe('isGitRepo', () => {
     writeFileSync(join(target, '.git'), 'gitdir: /elsewhere\n');
     expect(isGitRepo(target)).toBe(true);
   });
+  it('is true for a subfolder of a repo', () => {
+    const sub = join(target, 'sfdx', 'app');
+    mkdirSync(sub, { recursive: true });
+    expect(isGitRepo(sub)).toBe(true);
+    rmSync(join(target, '.git'), { recursive: true });
+    writeFileSync(join(target, '.git'), 'gitdir: /elsewhere\n');
+    expect(isGitRepo(sub)).toBe(true);
+  });
 });
 
 describe('findSkill', () => {
