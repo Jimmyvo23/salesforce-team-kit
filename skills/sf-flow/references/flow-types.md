@@ -61,7 +61,7 @@ Record-triggered, schedule-triggered and platform event flows don't need Run Flo
 - `Flow.status`: `Active`, `Draft` (shown as Inactive), `Obsolete` (shown as Inactive), `InvalidDraft` (shown as Draft).
 - A flow keeps up to 50 versions. Only one is active. Activating one deactivates the previous one. Running and paused interviews keep their version.
 - You can't delete an active version, or a version with paused interviews.
-- **Sandbox:** deploying changes to an active flow creates a new version. With `<status>Active</status>` in the file, that new version is active at once. A flow file without a status deploys as `Draft` (inactive). Deploy as `Draft` when the version must be tested before activation.
+- **Sandbox:** deploying changes to an active flow creates a new version (check View Details and Versions). With `<status>Active</status>` in the file, that new version is active at once. A flow file without a status deploys as `Draft` (inactive). Deploy as `Draft` when the version must be tested before activation.
 - `FlowDefinition.activeVersionNumber`, if deployed, overrides `status`.
-- `FlowTest` metadata (`.flowtest-meta.xml` in `flowtests/`, API 55.0 and later) holds Flow tests for record-triggered, autolaunched and Data Cloud-triggered flows.
+- `FlowTest` metadata (`.flowtest-meta.xml` in `flowtests/`, API 55.0 and later) holds Flow tests for record-triggered, autolaunched and Data Cloud-triggered flows. `FlowTestParameter.type` `ScheduledPath` (API 56.0 and later) runs a scheduled path. Run Asynchronously paths aren't tested.
 - Process Builder processes are stored as `Flow` with `processType` `Workflow` (or `InvocableProcess`). Don't edit their metadata by hand.

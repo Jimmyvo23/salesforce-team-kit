@@ -6,22 +6,22 @@
     {
       "item": "No Update Records (DML) or Get Records inside a Loop; builds a collection and updates it once, or uses Update Records with related-record criteria",
       "met": true,
-      "evidence": "\"There is no Loop and no Get Records.\" Update Records with filter `AccountId` Equals `{!$Record.Id}`"
+      "evidence": "\"How to find records: Specify conditions. Object: Contact. Condition: AccountId Equals {!$Record.Id}.\" and \"No Loop. One Update Records with criteria handles every Contact\""
     },
     {
       "item": "Entry condition only when an address field changes",
       "met": true,
-      "evidence": "OR(ISCHANGED({!$Record.BillingStreet}), ISCHANGED(...BillingCity) ...) \"fires only when an address field actually changes\""
+      "evidence": "OR(ISCHANGED({!$Record.BillingStreet}), ISCHANGED({!$Record.BillingCity}), ... BillingCountry) \"It fires only when the address changes, not on every Account save.\""
     },
     {
       "item": "Fault path on the update",
       "met": true,
-      "evidence": "\"**Fault connector** goes to element 3.\" (Send Email admin on failure)"
+      "evidence": "\"The fault connector goes to element 3.\" (Send Email with {!$Flow.FaultMessage}, its own fault connector)"
     },
     {
       "item": "Mentions bulk behaviour (200 Accounts saved at once, many Contacts per Account)",
       "met": true,
-      "evidence": "\"saves up to **200 Accounts per transaction**... 200 Accounts with 60 Contacts each is 12,000 Contact rows, which **fails**\""
+      "evidence": "\"A list edit or data load saves up to 200 Accounts per transaction... 200 Accounts with 60 Contacts each is 12,000 Contact rows, which fails.\""
     }
   ]
 }

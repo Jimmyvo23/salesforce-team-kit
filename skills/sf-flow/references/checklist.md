@@ -38,7 +38,9 @@ Example: a closed Case creates a follow-up Task.
 2. **Decision `Owner Is User`:** a Task owner must be a user, and a Case can be owned by a queue. Use the formula `LEFT({!$Record.OwnerId}, 3) = '005'` (the User key prefix is the same in every org). The other outcome assigns the Task to a fallback user from custom metadata, or skips it, and says so.
 3. **Formula `fxDueDate`** (Date): `{!$Flow.CurrentDate} + 3`. Say whether it means calendar days or business days.
 4. **Create Records `Create Follow-Up Task`:** Task with `OwnerId` = `{!$Record.OwnerId}`, `WhatId` = `{!$Record.Id}`, `ActivityDate` = `{!fxDueDate}`, Subject, Status, Priority. **Fault connector** goes to element 5.
-5. **Fault handling:** a Send Email action to the admin with `{!$Flow.FaultMessage}` and `{!$Record.Id}` (log and continue), or a Custom Error (block the close). Choose one and say why.
+5. **Fault handling:** choose one and say why.
+   - **Log and continue:** a Send Email action to the admin with `{!$Flow.FaultMessage}` and `{!$Record.Id}`, with its own fault connector to the end.
+   - **Block the close:** a Custom Error. That rolls back emails and records too, so log with a Publish Immediately platform event.
 
 ## 3. Bulk check
 
@@ -53,7 +55,8 @@ Example: a closed Case creates a follow-up Task.
 |---|---|
 | Record-triggered, autolaunched | **Flow tests**: one per path, plus "condition not met" and "already in target state". Use assertions on the triggering record and on outputs. Then real records, including a 200-record update. |
 | Screen flow | **Debug** in Flow Builder, then run it as a test rep (a user with only the reps' permission set) from the real page or action. Include the Apex failure path. |
-| Scheduled or asynchronous path | Flow tests don't run these. Use real records and check **Paused and Failed Flow Interviews** and the scheduled jobs. |
+| Scheduled path | Flow tests can run a scheduled path (choose it in the test, API 56.0 and later). Also use real records and check the scheduled jobs. |
+| Run Asynchronously path | Flow tests don't run it. Use real records and check **Paused and Failed Flow Interviews**. |
 
 ## 5. Activation and rollback (sandbox)
 
@@ -70,7 +73,7 @@ Example: a closed Case creates a follow-up Task.
 - [ ] Type chosen with a reason (before-save, after-save, screen, autolaunched)
 - [ ] Entry condition fires only on the change
 - [ ] Every Create, Update, Delete, Get, Apex action, subflow, email and callout has a fault connector
-- [ ] No Get, Create, Update or Delete inside a Loop
+- [ ] No Get, Create, Update, Delete, Apex action or subflow inside a Loop
 - [ ] Bulk behaviour stated with numbers
 - [ ] Run context and permissions stated
 - [ ] No hard-coded Ids, users or queues

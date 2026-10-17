@@ -30,8 +30,8 @@ A before-save flow can't create, update or delete other records, and has no acti
 
 ## Step 3: Entry conditions fire on the change
 
-- **Record-triggered:** set the condition on the target state and choose **"Only when a record is updated to meet the condition requirements"** (`doesRequireRecordChangedToMeetCriteria` = true). Example: Case `IsClosed` Equals `true`. It then runs once when the Case becomes closed, not on every later edit.
-- **"Any field changed" conditions** (address fields, several fields): use **Formula evaluates to true** with `OR(ISCHANGED({!$Record.BillingStreet}), ISCHANGED({!$Record.BillingCity}), …)` and trigger **A record is updated**. `ISCHANGED` is never true on create, so if create matters, use `OR(ISNEW(), ISCHANGED(…))` with "created or updated".
+- **Target state** ("when a Case is closed"): set the condition on the state, such as Case `IsClosed` Equals `true`, and choose **"Only when a record is updated to meet the condition requirements"** (`doesRequireRecordChangedToMeetCriteria` = true). It runs once when the Case becomes closed, not on later edits. If records can be created already in that state, trigger on **created or updated** with the same condition. A new record that meets the condition counts as a change, so nothing else is needed. Don't use `OR(ISNEW(), ISCHANGED(…))` for a target state: it fires on every new record and on a change away from the state, such as a reopen.
+- **"Any of these fields changed"** (address fields, several fields): use **Formula evaluates to true** with `OR(ISCHANGED({!$Record.BillingStreet}), ISCHANGED({!$Record.BillingCity}), …)` and trigger **A record is updated**. `ISCHANGED` is never true on create. If create matters, use `OR(ISNEW(), ISCHANGED(…))` with "created or updated". If the formula also needs a target state, AND it in: `AND({!$Record.IsClosed}, OR(ISNEW(), ISCHANGED(…)))`.
 - Never leave the condition at "None" or "every time a record is updated" for work that should happen once.
 - Make the write idempotent where you can (only if the target is blank or different).
 
@@ -41,14 +41,14 @@ Every **Create, Update, Delete, Get Records**, **Apex action**, **subflow**, **e
 
 - **Record-triggered flows:** choose one, and say which:
   - **Log and continue:** the fault path sends an email to an admin (include `{!$Flow.FaultMessage}`, the record Id and the element name), or publishes a log platform event set to **Publish Immediately**. The triggering save still succeeds, and only the failed element's changes are lost. So don't also say a related-record error "rolls back the whole save" in that design.
-  - **Block the save:** the fault path ends in a **Custom Error** element with a clear message. The whole transaction rolls back, **including any log record the fault path created**, so log with an immediate platform event or an email, not a record insert.
+  - **Block the save:** the fault path ends in a **Custom Error** element with a clear message. The whole transaction rolls back, **including any record the fault path created and any email it sent**: email from a transaction is sent only when it commits. So on this path, log only with a platform event set to **Publish Immediately**, which is published even if the transaction rolls back. Confirm that in the sandbox by forcing the error.
 - **Screen flows:** the fault path goes to an **error screen** with a friendly message ("We couldn't save the visit. Your entries are kept. Try again or contact your admin.") and a Back or Finish button. Put `{!$Flow.FaultMessage}` in the admin email or log, not in front of the rep.
 - **The fault path's own elements need fault connectors too.** A Send Email or log element with no fault connector fails the whole flow, and the save, if it fails. Connect its fault connector to the end (record-triggered) or the error screen (screen flow). Never leave it off "so a failed email can't break the save": leaving it off is what breaks the save.
 - Label elements descriptively (`Create Follow-Up Task`, not `Create Records 1`). Error emails name the element.
 
-## Step 5: No Get Records, Create, Update or Delete inside a Loop
+## Step 5: No Get, Create, Update, Delete, Apex action or subflow inside a Loop
 
-A Loop body may only hold **Assignment** and **Decision** elements.
+Never put a **Get, Create, Update or Delete Records**, **Apex action** or **subflow** inside a Loop. The loop body builds collections (Assignment, Decision and similar elements).
 
 - **Best:** one **Update Records** element with criteria, for example Contacts where `AccountId` Equals `{!$Record.Id}`, setting the fields. No loop at all.
 - **If each record needs logic:** Get Records once before the loop, then in the loop use an Assignment to set fields on the loop variable and **add it to a collection variable**. After the loop, one Update Records on that collection.
@@ -75,10 +75,10 @@ A Loop body may only hold **Assignment** and **Decision** elements.
 ## Step 8: Versions, testing, activation and rollback
 
 - **Versions:** a flow has versions, up to 50. **Only one version is active.** Activating a new version deactivates the previous one, while running or paused interviews finish on the version they started on. Saving changes to an active version in Flow Builder means **Save As New Version**. The new version is inactive until you activate it.
-- **Deploying** a flow file to a sandbox also creates a new version, and its `<status>` decides whether it is active. `<status>Active</status>` activates it **on deploy**, replacing the current version before you've tested it. To test first, deploy with `<status>Draft</status>`, test, then activate. Before deploying, check the file's `<status>`.
+- **Deploying changes** to a flow in a sandbox also creates a new version (check Setup > Flows > View Details and Versions), and the file's `<status>` decides whether it is active. `<status>Active</status>` activates it **on deploy**, replacing the current version before you've tested it. To test first, deploy with `<status>Draft</status>`, test, then activate. Before deploying, check the file's `<status>`.
 - **Any answer about changing or activating a flow starts with a "How versions work" paragraph** covering those points: saving an active flow creates a new, inactive version; only one version is active; and the old one stays for rollback. Write it even if the user seems to know.
 - **Test before activating, in the sandbox:**
-  - **Flow tests** (Flow Builder > View Tests) for record-triggered and autolaunched flows: one test per path, including "condition not met", with assertions. **Convert to Test** turns a debug run into a test. They don't cover asynchronous or scheduled paths. Screen flows have no Flow tests: debug them and run them as a rep.
+  - **Flow tests** (Flow Builder > View Tests) for record-triggered and autolaunched flows: one test per path, including "condition not met", with assertions. **Convert to Test** turns a debug run into a test. Flow tests can cover **scheduled paths** (a test chooses the path, API 56.0 and later), but not **Run Asynchronously** paths. Screen flows have no Flow tests: debug them and run them as a rep.
   - **Debug** with a test record (rollback mode keeps the sandbox data clean), then real test records: create or update a few records, and list-edit or load 200.
 - **Testing is the gate, not an option.** Activate only after the tests pass. Never offer "or activate straight away", even when the user only said "activate it". If you can't run the tests, list them as the step that comes before activation.
 - **Activate** in the sandbox (`uat` or the team's sandbox alias): Setup > Flows > the flow > View Details and Versions > Activate the new version, or click Activate in Flow Builder.
@@ -90,7 +90,7 @@ A Loop body may only hold **Assignment** and **Decision** elements.
 Salesforce ended support for both on 31 December 2025. Existing ones still run. Never create new ones. To replace one:
 
 1. **Inventory** (Step 1) for the object, so you know which other flows, triggers or rules overlap with the same fields.
-2. **Convert:** use **Setup > Migrate to Flow** on the process or rule. It handles record-triggered processes only. Review every item it marks **Needs Review**. If the tool can't convert it, or you can't see it yet, **rebuild it** and give the mapping anyway:
+2. **Convert:** use **Setup > Migrate to Flow** on the process or rule. It handles record-triggered processes only. It converts scheduled actions only when you migrate a single criterion. Review every item it marks **Needs Review**. If the tool offers **Switch Activations**, use it to activate the flow and deactivate the process together. Otherwise do both by hand at once. If the tool can't convert it, or you can't see it yet, **rebuild it** and give the mapping anyway:
    - each criteria node becomes a Decision outcome, or its own flow;
    - same-record field updates go in a before-save flow;
    - other actions go in an after-save flow;
@@ -107,7 +107,7 @@ Salesforce ended support for both on 31 December 2025. Existing ones still run. 
 | No automation inventory before the design | Add Step 1 with the queries |
 | Entry condition fires on every edit | "Only when updated to meet the condition" or `ISCHANGED` formula |
 | A Create, Update, Delete, Get, Apex or subflow element with no fault connector | Add it and name the target |
-| Get, Create, Update or Delete inside a Loop | Collection plus one element after the loop, or Update Records with criteria |
+| Get, Create, Update, Delete, Apex action or subflow inside a Loop | Collection plus one element after the loop, or Update Records with criteria |
 | No sentence about 200 records and the 10,000-row limit | Add the bulk paragraph |
 | No run context or permissions stated | Add Step 7 |
 | Activation without a test, a "How versions work" paragraph, or a rollback version | Add Step 8 |

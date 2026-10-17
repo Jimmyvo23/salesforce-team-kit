@@ -6,22 +6,22 @@
     {
       "item": "Record-triggered after-save flow on Case",
       "met": true,
-      "evidence": "**Record-triggered, after-save (Actions and Related Records).** The flow creates a record on another object (Task)"
+      "evidence": "Record-triggered, after-save (Actions and Related Records). The flow creates a different record (a Task)"
     },
     {
-      "item": "Entry condition only fires when Case changes to closed",
+      "item": "Entry condition only fires when the Case changes to closed, not on every edit",
       "met": true,
-      "evidence": "`IsClosed` Equals `true`... \"Only when a record is updated to meet the condition requirements\". It fires once when the Case becomes closed, not on later edits."
+      "evidence": "`IsClosed` Equals True; Run: \"Only when a record is updated to meet the condition requirements\". It fires once when the Case becomes closed, not on later edits"
     },
     {
       "item": "Create Records element has a fault path",
       "met": true,
-      "evidence": "**Fault connector:** goes to element 5. / Send Email `Notify Admin of Task Failure`"
+      "evidence": "Fault connector: goes to element 5a. Send Email `Email Admin – Task Creation Failed`"
     },
     {
-      "item": "Says to check existing automation on Case first",
+      "item": "Says to check the existing automation on Case first",
       "met": true,
-      "evidence": "## 1. Existing automation on Case (check first)"
+      "evidence": "Step 1: Check what already runs on Case (do this first)"
     }
   ]
 }
