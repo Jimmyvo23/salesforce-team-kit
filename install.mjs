@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { checkPrereqs, isGitRepo, findSkill } from './lib/install/checks.mjs';
 import { planInstall, planUninstall, applyChanges } from './lib/install/plan.mjs';
+import { readRegistry, addProject, removeProject } from './lib/install/registry.mjs';
 import { loadTeam } from './lib/team.mjs';
 import {
   readAliases, classifyAliases, sfInstanceUrl, parseSelection, defaultProjectName, defaultOrgName,
@@ -100,11 +101,18 @@ export function formatDiff(a, b, { context = 2, max = 40 } = {}) {
 
 /**
  * First-run setup: project name, sandbox list and org knowledge skill, written into .team/team.json.
+ * @returns {Promise<string | null>} an error message, or null on success
  * @param {{ targetDir: string, firstInstall: boolean, yes: boolean, io: { homeDir: string, ask: (q: string) => Promise<string>, lookupInstanceUrl?: (alias: string) => string | null }, out: (s: string) => void }} o
  */
 async function runSetup({ targetDir, firstInstall, yes, io, out }) {
   const teamFile = path.join(targetDir, '.team', 'team.json');
-  const team = JSON.parse(fs.readFileSync(teamFile, 'utf8'));
+  /** @type {any} */
+  let team;
+  try {
+    team = JSON.parse(fs.readFileSync(teamFile, 'utf8'));
+  } catch {
+    return '.team/team.json is not valid JSON; fix it, then re-run with --setup.';
+  }
   team.orgs = team.orgs && typeof team.orgs === 'object' ? team.orgs : {};
   const lookup = io.lookupInstanceUrl ?? sfInstanceUrl;
   const foundSkill = (/** @type {unknown} */ name) => typeof name === 'string' && name !== ''
@@ -157,7 +165,7 @@ async function runSetup({ targetDir, firstInstall, yes, io, out }) {
   let writeSkeleton = true;
   const old = team.orgSkill;
   if (yes) {
-    if (foundSkill(old)) { skill = old; writeSkeleton = false; }
+    if (!firstInstall && foundSkill(old)) { skill = old; writeSkeleton = false; }
   } else {
     const org = (await io.ask(`Org name for the knowledge skill [${defaultOrgName(project)}]:`)).trim();
     if (org) skill = `${defaultOrgName(org)}-org`;
@@ -175,35 +183,23 @@ async function runSetup({ targetDir, firstInstall, yes, io, out }) {
     if (writeIfMissing(path.join(targetDir, ...rel.split('/')), content)) out(`Created ${rel}`);
   }
   out(`Org setup done. In Claude Code, ask the Architect to run T-000 to fill ${skill}.`);
+  return null;
 }
 
 /** @param {string} answer */
 const isYes = (answer) => /^\s*y(es)?\s*$/i.test(answer);
 
 /**
- * @param {string[]} argv arguments after the script name
- * @param {{ cwd: string, homeDir: string, nodeVersion: string, stdout: (s: string) => void, stderr: (s: string) => void, ask: (question: string) => Promise<string>, hasCommand: (cmd: string, args: string[]) => boolean, gitInit: (dir: string) => boolean, lookupInstanceUrl?: (alias: string) => string | null }} io
- * @returns {Promise<number>} exit code
+ * Install, update or uninstall the Kit in one project.
+ * @param {string} targetDir absolute path
+ * @param { yes: boolean, setup: boolean, uninstall: boolean, io: { homeDir: string, cwd: string, nodeVersion: string, ask: (q: string) => Promise<string>, hasCommand: (cmd: string, args: string[]) => boolean, gitInit: (dir: string) => boolean, lookupInstanceUrl?: (alias: string) => string | null }, out: (s: string) => void, fail: (s: string) => number } o
+ * @returns {Promise<{ code: number, summary: string }>}
  */
-export async function main(argv, io) {
-  const out = (/** @type {string} */ s) => io.stdout(`${s}\n`);
-  const fail = (/** @type {string} */ s) => { io.stderr(`${s}\n`); return 1; };
-
-  let values;
-  try {
-    ({ values } = parseArgs({
-      args: argv,
-      options: { target: { type: 'string' }, uninstall: { type: 'boolean' }, yes: { type: 'boolean' }, setup: { type: 'boolean' } },
-      strict: true,
-      allowPositionals: false,
-    }));
-  } catch (e) {
-    return fail(`${/** @type {Error} */ (e).message}. ${USAGE}`);
-  }
-  if (!values.target) return fail(`Missing --target. ${USAGE}`);
-  const targetDir = path.resolve(io.cwd, values.target);
-  const uninstall = values.uninstall === true;
-  if (uninstall && values.setup) return fail(`--setup cannot be combined with --uninstall. ${USAGE}`);
+async function installOne(targetDir, { yes, setup, uninstall, io, out, fail }) {
+  const done = (/** @type {string} */ message) => {
+    fail(message);
+    return { code: 1, summary: `failed: ${message.split('\n')[0]}` };
+  };
   const warnOrgSkill = () => {
     if (uninstall) return;
     const team = loadTeam(path.join(targetDir, '.team', 'team.json'));
@@ -215,42 +211,46 @@ export async function main(argv, io) {
   if (!uninstall) {
     const problems = checkPrereqs({ targetDir, nodeVersion: io.nodeVersion, homeDir: io.homeDir, hasCommand: io.hasCommand });
     if (problems.length > 0) {
-      return fail(`Cannot install yet:\n${problems.map((p) => `- ${p}`).join('\n')}`);
+      return done(`Cannot install yet:\n${problems.map((p) => `- ${p}`).join('\n')}`);
     }
-    if (!fs.existsSync(targetDir)) return fail(`${targetDir} does not exist.`);
+    if (!fs.existsSync(targetDir)) return done(`${targetDir} does not exist.`);
     if (!isGitRepo(targetDir)) {
-      const yes = values.yes || isYes(await io.ask(`${targetDir} is not a Git repository. Run "git init" there now? (y/n)`));
-      if (!yes) return fail('The team needs a Git repository. Run "git init" in the project, then re-run.');
-      if (!io.gitInit(targetDir)) return fail(`"git init" failed in ${targetDir}. Run it yourself, then re-run.`);
+      const init = yes || isYes(await io.ask(`${targetDir} is not a Git repository. Run "git init" there now? (y/n)`));
+      if (!init) return done('The team needs a Git repository. Run "git init" in the project, then re-run.');
+      if (!io.gitInit(targetDir)) return done(`"git init" failed in ${targetDir}. Run it yourself, then re-run.`);
       out(`Ran git init in ${targetDir}.`);
     }
     out('Checks passed: Node, Git repository, Superpowers plugin, Salesforce CLI and Code Analyzer.');
   } else if (!fs.existsSync(targetDir)) {
-    return fail(`${targetDir} does not exist.`);
+    return done(`${targetDir} does not exist.`);
   }
 
   let changes;
   try {
     changes = uninstall ? planUninstall({ targetDir }) : planInstall({ kitDir: KIT_DIR, targetDir });
   } catch (e) {
-    return fail(/** @type {Error} */ (e).message);
+    return done(/** @type {Error} */ (e).message);
   }
 
   const pending = changes.filter((c) => c.action !== 'unchanged');
   const unchanged = changes.length - pending.length;
   if (pending.length === 0) {
     out(`Nothing to do in ${targetDir}; everything is up to date.`);
-    if (values.setup) await runSetup({ targetDir, firstInstall: false, yes: values.yes === true, io, out });
+    if (uninstall) removeProject(io.homeDir, targetDir); else addProject(io.homeDir, targetDir);
+    if (setup) {
+      const err = await runSetup({ targetDir, firstInstall: false, yes, io, out });
+      if (err) return done(err);
+    }
     warnOrgSkill();
-    return 0;
+    return { code: 0, summary: 'up to date' };
   }
   out(`${uninstall ? 'Uninstall' : 'Install'} into ${targetDir}:`);
   for (const c of pending) out(`  ${c.action.padEnd(8)}  ${c.path}${c.reason ? ` (${c.reason})` : ''}`);
   if (unchanged > 0) out(`  ${unchanged} file${unchanged === 1 ? '' : 's'} unchanged.`);
 
-  if (!values.yes && !isYes(await io.ask('Apply these changes? (y/n)'))) {
+  if (!yes && !isYes(await io.ask('Apply these changes? (y/n)'))) {
     out('No changes made.');
-    return 0;
+    return { code: 0, summary: 'up to date' };
   }
 
   /** @type {Map<string, boolean>} */
@@ -268,22 +268,24 @@ export async function main(argv, io) {
     } else {
       out(`${c.path} was changed after it was installed.`);
     }
-    if (values.yes) {
+    if (yes) {
       out(`Kept your customised ${c.path} (--yes never replaces customised files).`);
       decisions.set(c.path, false);
       continue;
     }
     const verb = c.content === undefined ? 'Delete' : 'Replace';
-    const yes = isYes(await io.ask(`${verb} your customised ${c.path}? (y/n)`));
-    if (!yes) out(`Kept ${c.path}.`);
-    decisions.set(c.path, yes);
+    const replace = isYes(await io.ask(`${verb} your customised ${c.path}? (y/n)`));
+    if (!replace) out(`Kept ${c.path}.`);
+    decisions.set(c.path, replace);
   }
 
+  const kept = [...decisions.values()].filter((d) => !d).length + changes.filter((c) => c.action === 'conflict' && c.symlink).length;
   applyChanges(changes, { targetDir, resolveConflict: (c) => decisions.get(c.path) === true });
   out(uninstall ? 'Uninstalled. team.json and handoffs were kept.' : 'Installed.');
   const createdTeam = changes.some((c) => c.path === '.team/team.json' && c.action === 'create');
-  if (!uninstall && (createdTeam || values.setup)) {
-    await runSetup({ targetDir, firstInstall: createdTeam, yes: values.yes === true, io, out });
+  if (!uninstall && (createdTeam || setup)) {
+    const err = await runSetup({ targetDir, firstInstall: createdTeam, yes, io, out });
+    if (err) return done(err);
   }
   warnOrgSkill();
   if (uninstall && fs.existsSync(path.join(targetDir, '.team'))) {
@@ -291,7 +293,56 @@ export async function main(argv, io) {
       .filter((e) => e.isFile() && /^events.*\.jsonl$/.test(e.name)).map((e) => `.team/${e.name}`);
     for (const log of logs) out(`Kept ${log} (the team's activity log); it is no longer git-ignored, so delete it or ignore it yourself before committing.`);
   }
-  return 0;
+  if (uninstall) removeProject(io.homeDir, targetDir); else addProject(io.homeDir, targetDir);
+  return { code: 0, summary: kept > 0 ? `kept ${kept} customised file${kept === 1 ? '' : 's'}` : 'updated' };
+}
+
+/**
+ * @param {string[]} argv arguments after the script name
+ * @param {{ cwd: string, homeDir: string, nodeVersion: string, stdout: (s: string) => void, stderr: (s: string) => void, ask: (question: string) => Promise<string>, hasCommand: (cmd: string, args: string[]) => boolean, gitInit: (dir: string) => boolean, lookupInstanceUrl?: (alias: string) => string | null }} io
+ * @returns {Promise<number>} exit code
+ */
+export async function main(argv, io) {
+  const out = (/** @type {string} */ s) => io.stdout(`${s}\n`);
+  const fail = (/** @type {string} */ s) => { io.stderr(`${s}\n`); return 1; };
+
+  let values;
+  try {
+    ({ values } = parseArgs({
+      args: argv,
+      options: { target: { type: 'string' }, uninstall: { type: 'boolean' }, yes: { type: 'boolean' }, setup: { type: 'boolean' }, 'update-all': { type: 'boolean' } },
+      strict: true,
+      allowPositionals: false,
+    }));
+  } catch (e) {
+    return fail(`${/** @type {Error} */ (e).message}. ${USAGE}`);
+  }
+  if (!values.target && !values['update-all']) return fail(`Missing --target. ${USAGE}`);
+  const uninstall = values.uninstall === true;
+  const yes = values.yes === true;
+  if (values['update-all']) {
+    if (values.target || uninstall || values.setup) return fail(`--update-all cannot be combined with --target, --uninstall or --setup. ${USAGE}`);
+    const projects = readRegistry(io.homeDir);
+    if (projects.length === 0) {
+      out('No projects registered yet. Install into a project first.');
+      return 0;
+    }
+    let failed = false;
+    for (const p of projects) {
+      if (!fs.existsSync(p) || !fs.existsSync(path.join(p, '.team', 'kit-manifest.json'))) {
+        out(`skipped ${p}: not installed any more`);
+        removeProject(io.homeDir, p);
+        continue;
+      }
+      const r = await installOne(p, { yes, setup: false, uninstall: false, io, out, fail: () => 1 });
+      if (r.code !== 0) failed = true;
+      out(`${p}: ${r.summary}`);
+    }
+    return failed ? 1 : 0;
+  }
+  const targetDir = path.resolve(io.cwd, /** @type {string} */ (values.target));
+  if (uninstall && values.setup) return fail(`--setup cannot be combined with --uninstall. ${USAGE}`);
+  return (await installOne(targetDir, { yes, setup: values.setup === true, uninstall, io, out, fail })).code;
 }
 
 /** True when this file is the entry script, directly or through a symlink. */

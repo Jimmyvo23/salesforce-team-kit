@@ -33,6 +33,14 @@ node install.mjs --target "../Salesforce Automation Clean up 2026/automation-cle
 
 It prints every change it will make and asks `Apply these changes? (y/n)`. Add `--yes` to skip that question.
 
+The first install into a project runs setup: it asks for the project name, lists the sf aliases on this Mac whose instance URL is a sandbox (production and aliases it can't look up are shown as skipped), and writes the ones you pick to `orgs.sandbox`. It also creates an org knowledge skill skeleton in `.claude/skills/<org>-org/` and the story `docs/stories/T-000-org-discovery.md`; ask the Architect to run T-000 to fill the skill from the sandbox. Neither file is ever overwritten or removed by the installer. Re-run setup any time with `--setup`. With `--yes`, setup asks nothing and chooses no sandboxes, so the guard blocks every org command until you run `--setup`.
+
+Every install is remembered in `~/.salesforce-team-kit/projects.json`. After updating the kit, update every project at once:
+
+```
+node install.mjs --update-all
+```
+
 What it puts in the project:
 
 - `.claude/agents/` with the five subagent files

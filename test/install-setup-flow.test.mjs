@@ -123,3 +123,22 @@ describe('re-runs and uninstall', () => {
     expect(r.code).toBe(1);
   });
 });
+
+describe('review fixes', () => {
+  test('a first --yes install ignores an existing org skill and writes the skeleton', async () => {
+    fs.mkdirSync(path.join(home, '.claude', 'skills', 'my-org-knowledge'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.claude', 'skills', 'my-org-knowledge', 'SKILL.md'), '---\nname: my-org-knowledge\n---\n');
+    const r = await cli(['--target', target, '--yes']);
+    expect(r.code).toBe(0);
+    expect(team().orgSkill).toBe('client-x-org');
+    expect(exists('.claude/skills/client-x-org/SKILL.md')).toBe(true);
+  });
+
+  test('malformed team.json fails setup cleanly', async () => {
+    await cli(['--target', target, '--yes']);
+    fs.writeFileSync(path.join(target, '.team', 'team.json'), '{bad');
+    const r = await cli(['--target', target, '--yes', '--setup']);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('.team/team.json is not valid JSON; fix it, then re-run with --setup.');
+  });
+});
