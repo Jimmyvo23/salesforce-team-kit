@@ -2,7 +2,7 @@
   "project": "My Salesforce Project",
   "staleAfterMinutes": 5,
   "orgSkill": "my-org-knowledge",
-  "orgs": { "sandbox": ["dev", "uat"] },
+  "orgs": { "sandbox": [] },
   "approver": { "id": "jimmy", "name": "Jimmy", "role": "Approves every Work Order and deploys to production", "color": "#ffb900" },
   "members": [
     { "id": "planner",   "name": "Architect", "role": "Designs the solution and runs the team", "color": "#6a5ae0" },
