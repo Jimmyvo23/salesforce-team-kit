@@ -43,7 +43,7 @@ Default: `name` from `sfdx-project.json` when present, otherwise the project fol
 4. Show a numbered list of sandboxes, with already-listed aliases pre-selected, then the skipped aliases with a reason: `not a sandbox (<host>)` or `could not look up`. Jimmy types the numbers to use (comma-separated; Enter keeps the pre-selection).
 5. Write the chosen aliases to `orgs.sandbox`, replacing the previous list. Only aliases classified as sandboxes can be chosen.
 
-With `--yes` (no questions) setup chooses no aliases: on a first install `orgs.sandbox` stays `[]` and the installer prints `No sandboxes chosen. Run node install.mjs --target <project> --setup to choose them.` The guard blocks every `sf` org command until then, which is the safe default. On a re-run with `--yes --setup`, the existing list is kept.
+With `--yes` (no questions) setup chooses no aliases and makes no lookups. It still writes the project name default, the skeleton and the story with default names (3.3, 3.4): on a first install `orgs.sandbox` stays `[]` and the installer prints `No sandboxes chosen. Run node install.mjs --target <project> --setup to choose them.` The guard blocks every `sf` org command until then, which is the safe default. On a re-run with `--yes --setup`, the existing list is kept.
 
 When no alias file exists or no sandbox is found, setup says so, explains `sf org login web --alias <name> --instance-url https://test.salesforce.com` (Jimmy runs it himself), and leaves the list as it was.
 
@@ -90,7 +90,7 @@ The installer's closing message says: `Org setup done. In Claude Code, ask the A
 
 - `lib/install/setup.mjs` (new): `readAliases({ homeDir })`, `classifyAliases(aliases, lookup)` → `{ sandboxes, skipped }`, `orgSkillSkeleton({ org, project })`, `discoveryStory({ skill })`, `defaultOrgName(project)`. Pure apart from `readAliases`; `lookup` is injected.
 - `lib/install/registry.mjs` (new): `readRegistry`, `addProject`, `removeProject`, given `homeDir`.
-- `install.mjs`: flags `--setup` and `--update-all`, the prompts, wiring. The real lookup reuses the guard's `sf org display` call (moved from `hooks/guard-org.mjs` to a shared helper so both use one implementation).
+- `install.mjs`: flags `--setup` and `--update-all`, the prompts, wiring. The real lookup is a small `sf org display -o <alias> --json` call in `lib/install/setup.mjs` (`sfInstanceUrl`). The guard files stay untouched (frozen at 663a4f1 after its security reviews); setup only imports `isSandboxUrl` from `lib/guard.mjs`.
 
 ## 6. Testing
 
