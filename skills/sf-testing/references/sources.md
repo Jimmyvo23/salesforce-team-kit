@@ -1,0 +1,29 @@
+# Sources
+
+On 2026-10-19, developer.salesforce.com returned HTTP 403 to WebFetch and curl, and help.salesforce.com pages render only with JavaScript. The Apex Developer Guide (Version 68.0, Winter '27, last updated 2026-10-16) and the Object Reference (Version 68.0, last updated 2026-10-16) were read from their official PDF editions. The Salesforce CLI Command Reference PDF (Winter '27) holds only the front matter and plug-in versions, so the command flags and the JSON output shape were read from the installed CLI's own help and its JSON reporter source (`@salesforce/cli` 2.145.6, `@salesforce/plugin-apex` 3.9.39; the reference lists plugin-apex 3.9.32), without connecting to any org.
+
+## Read in the official PDFs
+
+Apex Developer Guide PDF: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf
+
+- What to test (single, bulk up to 200, positive, negative, restricted user): https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Understanding Testing in Apex", "What to Test in Apex", PDF p.729–730) (checked 2026-10-19)
+- 75% coverage required to deploy, "don't focus on the percentage", every trigger needs some coverage, use the Assert class, runAs, create test data, data before `Test.startTest`: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Testing Best Practices", PDF p.750–751) (checked 2026-10-19)
+- Overall coverage is the average of new and existing code, coverage differs between sandbox and production, `ApexCodeCoverageAggregate` and `ApexCodeCoverage` Tooling API queries: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Code Coverage Best Practices", "Inspecting Code Coverage", PDF p.758–761) (checked 2026-10-19)
+- `System.runAs` enforces the user's sharing and object and field permissions, runAs only in tests, unique usernames in the sample, mixed DML inside runAs: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Using the runAs Method", PDF p.747–748) (checked 2026-10-19)
+- `startTest` and `stopTest` each allowed only once per test method; async work runs at `stopTest`: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Using Limits, startTest, and stopTest", PDF p.749) (checked 2026-10-19)
+- Setup sObjects that can't be mixed with other DML (FieldPermissions, ObjectPermissions, PermissionSet, PermissionSetAssignment, SetupEntityAccess, User, UserRole and others; list not exhaustive), not usable with `@IsTest(IsParallel=true)`; mixed DML in tests inside `System.runAs`: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("sObjects That Can't Be Used Together in DML Operations", "Mixed DML Operations in Test Methods", PDF p.167–170) (checked 2026-10-19)
+- API 67.0 and later: database operations in user mode by default, classes without a sharing keyword run with sharing, `WITH SECURITY_ENFORCED` not allowed: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Versioned Behavior Changes", "Enforce Object and Field Permissions") (checked 2026-10-19)
+- `HttpCalloutMock`, `Test.setMock`, DML before mock callouts (DML, then `Test.startTest`, then `Test.setMock`): https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Testing HTTP Callouts", "Performing DML Operations and Mock Callouts", PDF p.643–649) (checked 2026-10-19)
+- `FlowDefinitionView` fields `ApiName`, `IsActive`, `ActiveVersionId`, `LatestVersionId`, `LastModifiedBy` (standard API): https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/object_reference.pdf ("FlowDefinitionView") (checked 2026-10-19)
+
+## Salesforce CLI
+
+- `sf apex run test` flags (`-o/--target-org` required, `--class-names`, `--tests`, `--test-level`, `--code-coverage` with `--result-format`, `--wait`, `--output-dir`), async by default with a test run Id, View All Data needed, `RunSpecifiedTests` needs 75% per class and trigger in a deployment, `sf logic run test` (beta) for Apex and Flow tests: https://developer.salesforce.com/docs/platform/salesforce-cli-reference/guide/cli_reference_apex_run_test.html, confirmed with `sf apex run test --help` (checked 2026-10-19)
+- `sf apex get test`, `sf data query` (`--use-tooling-api`), `sf data create record`, `sf data delete record`: https://developer.salesforce.com/docs/atlas.en-us.sfdx_cli_reference.meta/sfdx_cli_reference/cli_reference_apex_commands_unified.htm and each command's `--help` (checked 2026-10-19)
+- JSON output shape `{status, result: {summary, tests, coverage}}`, summary fields, `Outcome` values `Pass`/`Fail`/`CompileFail`/`Skip`, run outcome `Passed`/`Failed`, per-class `coveredPercent` and the `lines` map (1 covered, 0 not), exit code 100 on failure: read from the installed `@salesforce/plugin-apex` 3.9.39 `lib/reporters/jsonReporter.js` and `testReporter.js` and `@salesforce/apex-node` `tests/types.d.ts` (checked 2026-10-19)
+- Running Apex tests from the CLI: https://developer.salesforce.com/docs/platform/sfdx-dev/guide/sfdx-dev-testing.html (checked 2026-10-19)
+
+## Shared with other skills
+
+- `Assert` class methods: https://developer.salesforce.com/docs/atlas.en-us.apexref.meta/apexref/apex_class_System_Assert.htm (checked 2026-10-16 for sf-apex)
+- Record-triggered flows run in system context without sharing; Flow tests cover scheduled paths but not asynchronous paths: see `skills/sf-flow/references/sources.md`, and https://trailhead.salesforce.com/content/learn/modules/flow-implementation-2/grant-flow-permissions-and-context (checked 2026-10-19)

@@ -1,0 +1,17 @@
+{
+  "id": "S4",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Uses HttpCalloutMock with Test.setMock",
+      "met": true,
+      "evidence": "private class ErpMock implements HttpCalloutMock ... Test.setMock(HttpCalloutMock.class, mock);"
+    },
+    {
+      "item": "Covers a success response and an error response (for example 500) with asserts",
+      "met": true,
+      "evidence": "successReturnsErpId (201) asserts 'ERP-42'; serverErrorThrowsWithStatus uses ErpMock(500, ...) and Assert.isTrue(e.getMessage().contains('500'))"
+    }
+  ]
+}

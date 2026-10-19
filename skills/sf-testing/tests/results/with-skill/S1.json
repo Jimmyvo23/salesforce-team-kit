@@ -1,0 +1,27 @@
+{
+  "id": "S1",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "One test per acceptance criterion, covering positive and negative cases (Partner gets 10, Customer stays blank, existing value unchanged)",
+      "met": true,
+      "evidence": "partnerRenewalGetsTenPercentDiscount (AC1), customerRenewalLeavesDiscountBlank (AC2), existingDiscountIsNotChangedOnEdit (AC3), plus partnerNonRenewalLeavesDiscountBlank as an extra negative"
+    },
+    {
+      "item": "A bulk test with 200 records",
+      "met": true,
+      "evidence": "bulkInsertOf200PartnerRenewalsAllGetDiscount: TestDataFactory.opportunities(partnerId, 'Renewal', 200); asserts 200 with discount 10"
+    },
+    {
+      "item": "A System.runAs test for a user without edit access to Partner_Discount__c",
+      "met": true,
+      "evidence": "userWithoutDiscountEditStillGetsDiscount: RestrictedUser.create(... readOnly 'Partner_Discount__c'); System.runAs(u) { ... insert as user o; }"
+    },
+    {
+      "item": "Every test asserts field values with Assert methods, with test data from a factory or @TestSetup",
+      "met": true,
+      "evidence": "All 6 tests use Assert.areEqual/isNull on queried Partner_Discount__c; data comes from TestDataFactory and @TestSetup setup()"
+    }
+  ]
+}

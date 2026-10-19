@@ -1,0 +1,27 @@
+{
+  "id": "S1",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "One test per acceptance criterion, covering positive and negative cases (Partner gets 10, Customer stays blank, existing value unchanged)",
+      "met": true,
+      "evidence": "partnerRenewalGetsTenPercentDiscount, customerRenewalDiscountStaysBlank, existingDiscountIsNotChangedOnEdit (plus partnerNonRenewalDiscountStaysBlank)"
+    },
+    {
+      "item": "A bulk test with 200 records",
+      "met": true,
+      "evidence": "bulkInsertOf200RenewalsAllGetDiscount: for (Integer i = 0; i < 200; i++)"
+    },
+    {
+      "item": "A System.runAs test for a user without edit access to Partner_Discount__c",
+      "met": false,
+      "evidence": "userWithoutFieldEditAccessStillGetsDiscount uses a Standard User profile and System.runAs, but the user's lack of edit access is only assumed. The test fails its own precondition assertion if the profile has FLS edit. It doesn't create a profile or permission set that removes access."
+    },
+    {
+      "item": "Every test asserts field values with Assert methods, with test data from a factory or @TestSetup",
+      "met": false,
+      "evidence": "All tests use Assert methods. But there is no @TestSetup or separate factory class, only private helpers inside the test class. The existing-value test also sets the field on insert and then checks it after an update, which is a weak check. The answer also says the tests were not run."
+    }
+  ]
+}
