@@ -12,6 +12,8 @@
 
 ## Test data factory
 
+If a `TestDataFactory` already exists in the org or project, retrieve it and add to it instead of replacing it (sf-testing does the same). The shape below is for a project that has none.
+
 ```apex
 @IsTest
 public class TestDataFactory {

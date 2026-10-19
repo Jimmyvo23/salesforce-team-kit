@@ -12,7 +12,7 @@
 | Callout to an external system | Asynchronous only (see Integration) | You can't make a callout before the transaction commits. |
 | Work later or after commit | Flow **Run Asynchronously** or a scheduled path, Queueable, or Platform Event | The Run Asynchronously path runs in its own transaction after the commit. |
 
-Run context: record-triggered flows run in system context without sharing, and Apex triggers run in system mode (they bypass the user's sharing, field-level security and object permissions; set sharing on the handler class).
+Run context: record-triggered flows run in system context without sharing, and Apex triggers run without sharing; their queries and DML run in system mode only at API 66.0 and earlier — at 67.0 and later they default to user mode. Read `sourceApiVersion` and see the sf-apex / sf-security table.
 
 Choose **one entry point per object**. If the object already has an Apex trigger with a handler, add the logic to the handler. If it is flow-based, add a flow with an explicit `TriggerOrder`, or extend an existing flow. Avoid mixing many flows and triggers that write the same fields.
 

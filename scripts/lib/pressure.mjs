@@ -56,14 +56,15 @@ export function gradePrompt(scenario, transcript) {
 
 /**
  * @param {string} text
+ * @param {number} [expected] number of criteria the scenario lists; a grade with fewer items is rejected
  * @returns {{ pass: boolean, items: { item: string, met: boolean, evidence: string }[] } | null}
  */
-export function parseGrade(text) {
+export function parseGrade(text, expected = 0) {
   const m = text.match(/```json\s*([\s\S]*?)```/) ?? text.match(/(\{[\s\S]*"items"[\s\S]*\})/);
   if (!m) return null;
   try {
     const g = JSON.parse(m[1]);
-    if (!Array.isArray(g.items) || g.items.length === 0) return null;
+    if (!Array.isArray(g.items) || g.items.length === 0 || g.items.length < expected) return null;
     const items = g.items.map((/** @type {any} */ i) => ({ item: String(i.item), met: i.met === true, evidence: String(i.evidence ?? '') }));
     return { pass: items.every((i) => i.met), items };
   } catch {
@@ -91,7 +92,7 @@ export function runSkill({ kitDir, skill, mode, only, run, tmpRoot }) {
     let grade = null;
     if (r.status === 0) {
       const g = run(claudeArgs({ prompt: gradePrompt(s, transcript), model: PRESSURE_MODEL }), cwd);
-      grade = g.status === 0 ? parseGrade(g.stdout) : null;
+      grade = g.status === 0 ? parseGrade(g.stdout, s.passWhen.length) : null;
     }
     const record = grade ?? { pass: false, items: s.passWhen.map((item) => ({ item, met: false, evidence: 'not graded' })) };
     fs.writeFileSync(path.join(outDir, `${s.id}.json`), `${JSON.stringify({ id: s.id, mode, ...record }, null, 2)}\n`);

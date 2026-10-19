@@ -44,7 +44,7 @@ Say **why** the choice beats the alternatives, in one or two lines:
 - **Before-save vs after-save, same record:** before-save needs no extra DML and no second save. An after-save update re-runs the whole save order on the same record. Apex adds code and tests for no gain.
 - **What before-save can't do:** a before-save flow **cannot create, update or delete other records**. It has no actions and no subflows. It changes only `$Record` (values are applied without an Update Records element) and can block the save with a Custom Error element. So a cross-object update is always after-save (or Apex), and you say that this is the reason.
 - **Existing entry point:** if the inventory shows an Apex trigger on the object, add to its handler and never add a second trigger, because the order between triggers is not guaranteed. If the object is flow-based, give the new flow an explicit `TriggerOrder`.
-- **Run context:** record-triggered flows run in system context without sharing, and Apex triggers run in system mode. Say so when the change writes records the user can't edit.
+- **Run context:** record-triggered flows run in system context without sharing, and Apex triggers run without sharing; their queries and DML run in system mode only at API 66.0 and earlier, and default to user mode at 67.0 and later (read `sourceApiVersion`; see the sf-apex / sf-security table). Say so when the change writes records the user can't edit.
 - Never add Workflow Rules or Process Builder. Both are retired.
 
 Details and edge cases are in `references/decision-rules.md`.

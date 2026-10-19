@@ -15,7 +15,7 @@ Write code that is correct for **200 records at once**, for **the running user's
 
 | Class saved at API… | Database operations by default | Class with no sharing keyword |
 |---|---|---|
-| **66.0 or earlier** | **system mode** (no FLS or object checks) | usually **without sharing** |
+| **66.0 or earlier** | **system mode** (no FLS or object checks) | usually **without sharing** (exact rules: sf-security) |
 | **67.0 or later** | user mode | with sharing |
 
 Write it explicitly at **every** version, so the code means the same thing after a version bump:

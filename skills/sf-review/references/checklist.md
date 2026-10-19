@@ -6,6 +6,8 @@ First read `sfdx-project.json` `sourceApiVersion` and each class's `-meta.xml` `
 
 ## 1. CRUD/FLS and user mode
 
+Production classes only. In @IsTest classes, setup DML and assert queries run as the test user without an access mode; access is proven with System.runAs plus `as user` (sf-testing §3). The same exemption applies to the sharing keyword in section 2.
+
 - Grep: `\[SELECT` and `Database.query` without `WITH USER_MODE` (or `AccessLevel.USER_MODE`); `insert |update |upsert |delete ` without `as user`.
 - `WITH SECURITY_ENFORCED` is not allowed at 67.0+: ask for `WITH USER_MODE`.
 - `WITH SYSTEM_MODE` / `as system` is acceptable only on one statement, with a comment giving the reason.
@@ -31,7 +33,7 @@ First read `sfdx-project.json` `sourceApiVersion` and each class's `-meta.xml` `
 - Grep: 15- or 18-character Id literals: `'[a-zA-Z0-9]{15}'`, `'[a-zA-Z0-9]{18}'`, prefixes such as `'012` (record type), `'005` (user), `'00G` (queue/group).
 - Also URLs (`https://`), usernames, passwords, tokens: Blocking.
 - Business numbers (discount rates, thresholds) that belong in Custom Metadata: **Should fix**. Comparing a picklist API value (`a.Type == 'Partner'`) is normal and not a finding.
-- Fix direction: record types by DeveloperName (`Schema.SObjectType.<Object>.getRecordTypeInfosByDeveloperName()`), Custom Metadata or Custom Labels for business values, Named Credentials for endpoints.
+- Fix direction: record types by DeveloperName (`Schema.SObjectType.<Object>.getRecordTypeInfosByDeveloperName()`), Custom Metadata for business values, Named Credentials for endpoints.
 - Code Analyzer: `AvoidHardcodingId`.
 
 ## 5. Automation overlap

@@ -31,7 +31,7 @@ sf code-analyzer run --target <each changed file or folder> --severity-threshold
 | Severity | Effect on the verdict |
 |---|---|
 | **1 Critical, 2 High** | **Blocks.** Changes needed, no exceptions. |
-| **3 Moderate** | Blocks if it is a Security rule or a limits-in-loop rule on changed lines; otherwise fix, or the builder writes the reason in the handoff. |
+| **3 Moderate** | (This kit's policy, not Salesforce's.) Blocks if it is a Security rule or a limits-in-loop rule on changed lines; otherwise fix, or the builder writes the reason in the handoff. |
 | **4 Low, 5 Info** | Note only. |
 
 A clean run is necessary, not sufficient: the analyzer can't see automation overlap, test intent or the rollback plan, and some checklist failures are reported only at Moderate. **A blocking checklist failure in section 3 blocks, whatever severity the analyzer gave it.**
@@ -42,8 +42,8 @@ A clean run is necessary, not sufficient: the analyzer can't see automation over
 
 | # | Check | Deep dive |
 |---|---|---|
-| 1 | **CRUD/FLS:** every SOQL has `WITH USER_MODE`, every DML `as user` (or `AccessLevel.USER_MODE`); system mode only on one statement with a comment | sf-security, sf-apex |
-| 2 | **Sharing keyword:** every class declares `with sharing` (or `inherited sharing` / a commented `without sharing`) | sf-security |
+| 1 | **CRUD/FLS** (production classes only; in `@IsTest` classes setup DML and assert queries run as the test user without an access mode, and access is proven with `System.runAs` plus `as user`, sf-testing §3): every SOQL has `WITH USER_MODE`, every DML `as user` (or `AccessLevel.USER_MODE`); system mode only on one statement with a comment | sf-security, sf-apex |
+| 2 | **Sharing keyword** (production classes only, not `@IsTest` classes): every class declares `with sharing` (or `inherited sharing` / a commented `without sharing`) | sf-security |
 | 3 | **SOQL or DML inside a loop** (Apex `for`, or Get/Create/Update/Delete inside a Flow Loop) | sf-apex, sf-flow |
 | 4 | **Hard-coded Ids, URLs or credentials** (record type Ids, user Ids, endpoints). Hard-coded business numbers (rates, thresholds) are **Should fix** (Custom Metadata); comparing a picklist API value (`Type == 'Partner'`) is fine | sf-apex |
 | 5 | **Automation overlap:** another trigger, flow or class writes the same field on the same object | sf-architecture |
@@ -59,7 +59,7 @@ How to check each item, with grep patterns: `references/checklist.md`. Security 
 
 Search `force-app/` for the field across `triggers/`, `classes/`, `flows/` (and workflows), for example `Grep "Partner_Discount__c" force-app`. The repo is not the org: say that the org may hold more (sf-architecture's automation inventory lists the queries).
 
-When two automations write the same field on save, explain **who wins** from the order of execution: before-save record-triggered flows run first (step 3), then before triggers (step 4), so **a before trigger overwrites a before-save flow** on the same field; after triggers and after-save flows run later and need another update. The result depends on records that match both, and it is easy to misread. **Ask for one place**: put the rule in the existing trigger handler, or move the trigger's rule into the flow and retire it. Two writers on one field is Changes needed, even when each one is correct alone.
+When two automations write the same field on save, explain **who wins** from the order of execution: before-save record-triggered flows run first, then before triggers, so **a before trigger overwrites a before-save flow** on the same field; after triggers and after-save flows run later and need another update. The result depends on records that match both, and it is easy to misread. **Ask for one place**: put the rule in the existing trigger handler, or move the trigger's rule into the flow and retire it. Two writers on one field is Changes needed, even when each one is correct alone.
 
 ## 5. Tests (item 7): coverage is not approval
 

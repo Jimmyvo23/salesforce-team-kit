@@ -65,3 +65,35 @@ function listRefs(dir) {
 test('all seven skills exist', () => {
   expect([...skills].sort()).toEqual(['sf-apex', 'sf-architecture', 'sf-deploy', 'sf-flow', 'sf-review', 'sf-security', 'sf-testing']);
 });
+
+/** @param {string} dir @returns {string[]} */
+function walk(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
+}
+
+test('pressure-run results hold no org secrets (Ruling T1-a patterns)', () => {
+  const secret = /00D[A-Za-z0-9]{12,15}![A-Za-z0-9._]+|accessToken|refresh_token|sfdxAuthUrl|force:\/\//;
+  for (const name of skills) {
+    const results = path.join(skillsDir, name, 'tests', 'results');
+    if (!fs.existsSync(results)) continue;
+    for (const f of walk(results)) expect(fs.readFileSync(f, 'utf8'), f).not.toMatch(secret);
+  }
+});
+
+test('shipped skill files never suggest quick deploys or production targets', () => {
+  const files = skills.flatMap((name) => walk(path.join(skillsDir, name)).filter((f) => !f.includes(`${path.sep}tests${path.sep}`) && f.endsWith('.md')));
+  expect(files.length).toBeGreaterThan(0);
+  for (const f of files) {
+    const text = fs.readFileSync(f, 'utf8');
+    // only the runnable command form (sf-deploy names these inside its refusal table, which is not at line start)
+    expect(text, `${f} suggests deploy quick`).not.toMatch(/^\s*(\$ )?sf project deploy quick\b/m);
+    expect(text, `${f} targets prod`).not.toMatch(/\bsf\s[^\n`]*(-o|--target-org)[ =]prod\b/i);
+  }
+});
+
+test('sf-deploy checklist headings equal the change set template headings (Ruling T7-b)', () => {
+  const heads = (/** @type {string} */ p) => fs.readFileSync(path.join(root, p), 'utf8').split('\n').filter((l) => /^## \d+\. /.test(l));
+  const t = heads('templates/changeset-template.md');
+  expect(t).toHaveLength(7);
+  expect(heads('skills/sf-deploy/references/changeset-checklist.md')).toEqual(t);
+});

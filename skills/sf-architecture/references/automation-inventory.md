@@ -14,10 +14,10 @@ sf data query --use-tooling-api -o <alias> -q "SELECT Id, DeveloperName, Namespa
 
 ## 1. Record-triggered flows (and their trigger order)
 
-`FlowDefinitionView` is documented in the Object Reference (standard API), not the Tooling API, so query it **without** `--use-tooling-api`. It filters on the object **label**. If the object was relabelled (for example Opportunity shown as "Deal"), use the label the org shows.
+`FlowDefinitionView` is documented in the Object Reference (standard API), not the Tooling API, so query it **without** `--use-tooling-api`. It filters on the object **API name** (`QualifiedApiName`), so a relabelled object (for example Opportunity shown as "Deal") still matches. Confirm the filter once in the sandbox; if it errors, fall back to the label the org shows.
 
 ```sh
-sf data query -o <alias> -q "SELECT ApiName, Label, ProcessType, TriggerType, RecordTriggerType, TriggerOrder, IsActive, ActiveVersionId, NamespacePrefix FROM FlowDefinitionView WHERE TriggerObjectOrEventLabel = 'Opportunity' ORDER BY TriggerType, TriggerOrder"
+sf data query -o <alias> -q "SELECT ApiName, Label, ProcessType, TriggerType, RecordTriggerType, TriggerOrder, IsActive, ActiveVersionId, NamespacePrefix FROM FlowDefinitionView WHERE TriggerObjectOrEvent.QualifiedApiName = 'Opportunity' ORDER BY TriggerType, TriggerOrder"
 ```
 
 How to read it:

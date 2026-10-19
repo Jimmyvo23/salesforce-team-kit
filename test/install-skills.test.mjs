@@ -41,6 +41,22 @@ describe('skills', () => {
     expect(fs.existsSync(path.join(target, '.claude', 'skills', 'my-own', 'SKILL.md'))).toBe(true);
   });
 
+  test('update from a manifest without skill folders records them, so uninstall removes the empty folders', () => {
+    install();
+    const manifestPath = path.join(target, '.team', 'kit-manifest.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    manifest.files = Object.fromEntries(Object.entries(manifest.files).filter(([k]) => !k.startsWith('.claude/skills/')));
+    manifest.createdDirs = manifest.createdDirs.filter((d) => !d.startsWith('.claude/skills'));
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+    fs.rmSync(path.join(target, '.claude', 'skills'), { recursive: true });
+    install();
+    const after = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    expect(after.createdDirs).toContain('.claude/skills');
+    for (const name of SKILLS) expect(after.createdDirs).toContain(`.claude/skills/${name}`);
+    uninstall();
+    expect(fs.existsSync(path.join(target, '.claude', 'skills'))).toBe(false);
+  });
+
   test('a skill file removed from the kit is removed from the project on update', () => {
     install();
     const manifestPath = path.join(target, '.team', 'kit-manifest.json');

@@ -93,6 +93,12 @@ describe('grading', () => {
     expect(ok.items).toHaveLength(2);
     expect(parseGrade('no json here')).toBeNull();
   });
+  test('parseGrade rejects a grade with fewer items than the scenario has criteria', () => {
+    const text = '```json\n{"items": [{"item":"a","met":true,"evidence":"x"}]}\n```';
+    expect(parseGrade(text)).not.toBeNull();
+    expect(parseGrade(text, 1)?.pass).toBe(true);
+    expect(parseGrade(text, 2)).toBeNull();
+  });
 });
 
 describe('runSkill', () => {
@@ -107,7 +113,7 @@ describe('runSkill', () => {
     const run = (args) => {
       calls.push(args);
       const isGrade = args[1].includes('Pass when');
-      const items = '[{"item":"a","met":true,"evidence":"e"}]';
+      const items = '[{"item":"a","met":true,"evidence":"e"},{"item":"b","met":true,"evidence":"e"}]';
       return { status: 0, stdout: isGrade ? `\`\`\`json\n{"pass":true,"items":${items}}\n\`\`\`` : 'ANSWER', stderr: '' };
     };
     const r = runSkill({ kitDir: kit, skill: 'sf-x', mode: 'baseline', run });

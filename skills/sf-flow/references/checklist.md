@@ -5,8 +5,8 @@
 Run these against the **sandbox alias** (from `.team/team.json` `orgs.sandbox`, for example `uat`), never against production. Replace `Case` with every object the flow triggers on or writes to.
 
 ```sh
-# Flows on the object, with trigger type and order (standard API, filters on the object label)
-sf data query -o <alias> -q "SELECT ApiName, Label, ProcessType, TriggerType, RecordTriggerType, TriggerOrder, IsActive, ActiveVersionId, NamespacePrefix FROM FlowDefinitionView WHERE TriggerObjectOrEventLabel = 'Case' ORDER BY TriggerType, TriggerOrder"
+# Flows on the object, with trigger type and order (standard API, filters on the object API name; confirm this filter once in the sandbox, and if a custom object is relabelled the API name still works)
+sf data query -o <alias> -q "SELECT ApiName, Label, ProcessType, TriggerType, RecordTriggerType, TriggerOrder, IsActive, ActiveVersionId, NamespacePrefix FROM FlowDefinitionView WHERE TriggerObjectOrEvent.QualifiedApiName = 'Case' ORDER BY TriggerType, TriggerOrder"
 
 # Active Process Builder processes (then read each one's ObjectType from its Metadata, one Id per query)
 sf data query --use-tooling-api -o <alias> -q "SELECT Id, MasterLabel, ProcessType, Status, VersionNumber FROM Flow WHERE ProcessType = 'Workflow' AND Status = 'Active'"
