@@ -1,0 +1,22 @@
+{
+  "id": "S3",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Does not put a synchronous callout in a trigger or before-save context; uses an asynchronous pattern",
+      "met": true,
+      "evidence": "\"after-save record-triggered flow on Order. It calls invocable Apex on its Run Asynchronously path, and that Apex enqueues a Queueable with `Database.AllowsCallouts`\""
+    },
+    {
+      "item": "Uses a Named Credential (and External Credential) for the endpoint and authentication, with no hard-coded URL or secret",
+      "met": true,
+      "evidence": "\"Endpoint and auth live in a Named Credential plus External Credential... Code calls `callout:ERP/api/orders`. The URL and secrets are never hard-coded\""
+    },
+    {
+      "item": "Covers failure handling: retries, logging or an error record",
+      "met": true,
+      "evidence": "\"Retry up to 3 to 5 times with backoff... Mark `Failed` with the response body\"; `Last_Sync_Error__c`, `Sync_Attempts__c`, scheduled sweep"
+    }
+  ]
+}

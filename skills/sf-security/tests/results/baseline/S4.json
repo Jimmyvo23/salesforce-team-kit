@@ -1,0 +1,22 @@
+{
+  "id": "S4",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Uses guest user sharing rules and the guest profile's minimum object and field permissions",
+      "met": true,
+      "evidence": "Read-only on Product2 on the guest profile; \"Read on only the fields the catalogue page shows\"; \"A guest user sharing rule on Product2\"."
+    },
+    {
+      "item": "Warns against giving guests edit access or using without sharing broadly",
+      "met": false,
+      "evidence": "Only says \"Read-only on Product2, with no create, edit, or delete\" and to scope the rule rather than share every record. It never warns against guest edit access or against without sharing."
+    },
+    {
+      "item": "Mentions that guest records are owned by a default internal owner (secure guest access settings)",
+      "met": false,
+      "evidence": "not found"
+    }
+  ]
+}

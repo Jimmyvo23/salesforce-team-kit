@@ -1,0 +1,22 @@
+{
+  "id": "S2",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Reads that the class references the field Partner_Discount__c, which is not in the deploy or not in the org",
+      "met": true,
+      "evidence": "`PartnerDiscountService` (line 12, col 24) refers to `Partner_Discount__c`, and the `uat` org says that field doesn't exist."
+    },
+    {
+      "item": "Fixes it by deploying the field with or before the class (dependency order), and checks field-level security",
+      "met": true,
+      "evidence": "\"Deploy the field and the class together.\" and \"you may also need a permission set that grants field access.\""
+    },
+    {
+      "item": "Re-runs a --dry-run before the real deploy",
+      "met": false,
+      "evidence": "not found"
+    }
+  ]
+}

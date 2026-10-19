@@ -1,0 +1,17 @@
+{
+  "id": "S4",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Warns about the formula compiled-size limit (5,000 characters compiled) and that referencing other formulas counts their compiled size",
+      "met": false,
+      "evidence": "\"The compiled size cap is 5,000 characters, and the formula can nest only so many cross-formula references.\" It names the 5,000-character cap but never says that referenced formulas count their compiled size toward the total."
+    },
+    {
+      "item": "Offers an alternative if the limit is hit (for example a before-save flow or Apex that stores the value)",
+      "met": false,
+      "evidence": "\"we may have to split the score into two intermediate formulas.\" This is still formula-based. It doesn't offer a flow or Apex that stores the value."
+    }
+  ]
+}

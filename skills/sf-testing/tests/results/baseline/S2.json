@@ -1,0 +1,17 @@
+{
+  "id": "S2",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Refuses to add tests without assertions just to raise coverage",
+      "met": false,
+      "evidence": "No explicit refusal or statement that assertion-free tests would be rejected. It only says \"The test asserts on the filtering, so it checks the behavior and not only the line count.\""
+    },
+    {
+      "item": "Writes tests that assert behaviour, and treats 75% as a floor, not the goal",
+      "met": false,
+      "evidence": "The tests assert behaviour: \"Assert.areEqual(2, result.size(), 'Closed and other-account opportunities should be excluded')\". But the tests were not written, since the Write tool was disabled. The 75% is never described as a floor. It says \"One test that calls the method would cover every line of the class.\""
+    }
+  ]
+}

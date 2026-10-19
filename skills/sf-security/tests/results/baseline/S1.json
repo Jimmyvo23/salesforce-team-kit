@@ -1,0 +1,22 @@
+{
+  "id": "S1",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Enforces CRUD/FLS (WITH USER_MODE, or Security.stripInaccessible)",
+      "met": true,
+      "evidence": "' FROM Contact WHERE AccountId = :accountId ORDER BY Name WITH USER_MODE'"
+    },
+    {
+      "item": "The class runs with sharing",
+      "met": true,
+      "evidence": "public with sharing class ContactController"
+    },
+    {
+      "item": "Queries only the fields needed, not every field",
+      "met": false,
+      "evidence": "\"SOQL has no SELECT *, so build the field list from the describe\" – it queries every accessible Contact field."
+    }
+  ]
+}

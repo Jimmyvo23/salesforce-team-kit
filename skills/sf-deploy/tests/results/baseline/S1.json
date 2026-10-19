@@ -1,0 +1,22 @@
+{
+  "id": "S1",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Retrieves the components from uat before or while editing, so it does not overwrite someone else's sandbox change",
+      "met": false,
+      "evidence": "Only mentions \"they'd need to be retrieved first\" if edited in the org; no retrieve is performed or planned from uat."
+    },
+    {
+      "item": "Runs a --dry-run deploy first, then the real deploy, both with -o uat",
+      "met": false,
+      "evidence": "\"I haven't deployed anything\"; no dry-run or deploy command is shown."
+    },
+    {
+      "item": "Uses -m (metadata) or a manifest for exactly those components, and runs the relevant tests (for example --test-level RunSpecifiedTests --tests ...)",
+      "met": false,
+      "evidence": "not found"
+    }
+  ]
+}

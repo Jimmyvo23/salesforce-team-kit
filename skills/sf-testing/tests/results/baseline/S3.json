@@ -1,0 +1,22 @@
+{
+  "id": "S3",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Runs Apex tests with sf apex run test -o uat ... --result-format json (with --code-coverage) and says to read the JSON results",
+      "met": false,
+      "evidence": "not found. The answer proposes no `sf apex run test` command; it only lists describe, dry-run deploy and query checks."
+    },
+    {
+      "item": "Checks results with SOQL in the sandbox (sf data query -o uat)",
+      "met": false,
+      "evidence": "It proposes `sf data query -o uat -q \"SELECT Id, Partner_Discount__c FROM Opportunity LIMIT 1\"`, but only as a plan. It was not run, and it does not check test results."
+    },
+    {
+      "item": "Names and cleans up any test records it creates, and never uses production or real customer data",
+      "met": false,
+      "evidence": "It says \"the sandbox `uat` is the only org I'd touch\" and proposes read-only checks. It creates no test records and says nothing about naming or cleaning them up."
+    }
+  ]
+}

@@ -5,7 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { planInstall, planUninstall, applyChanges } from '../lib/install/plan.mjs';
+import { planInstall, planUninstall, applyChanges, skillCopies } from '../lib/install/plan.mjs';
 import { main, formatDiff } from '../install.mjs';
 
 const KIT = fileURLToPath(new URL('..', import.meta.url));
@@ -32,6 +32,8 @@ const KIT_FILES = [
   '.team/planner.md',
   '.team/work-order-template.md',
 ];
+KIT_FILES.push(...skillCopies(fileURLToPath(new URL('../skills', import.meta.url))).map(([, dest]) => dest));
+KIT_FILES.sort();
 const EXECUTABLES = ['.team/bin/cli/team-status.mjs', '.team/bin/hooks/guard-org.mjs', '.team/bin/hooks/record.mjs', '.team/bin/team-status.mjs'];
 
 let root, target, home;
@@ -672,7 +674,7 @@ describe('obsolete kit files', () => {
     write('.claude/settings.local.json', '');
     write('x.md', '');
     write('y.md', '');
-    const touched = (plan) => plan.map((c) => c.path).filter((x) => /app\.ts|T-1-backend|settings\.local|x\.md|y\.md/.test(x));
+    const touched = (plan) => plan.map((c) => c.path).filter((x) => /(^|\/)(app\.ts|T-1-backend[^/]*|settings\.local[^/]*|x\.md|y\.md)$/.test(x));
     expect(touched(planInstall({ kitDir: KIT, targetDir: target }))).toEqual([]);
     expect(touched(planUninstall({ targetDir: target }))).toEqual([]);
     await install();

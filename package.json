@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "build": "tsc -p dashboard && vite build --config dashboard/vite.config.ts",
     "office": "node scripts/office.mjs",
+    "skills:pressure": "node scripts/skill-pressure.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "typecheck": "tsc -p dashboard && tsc -p test/e2e"

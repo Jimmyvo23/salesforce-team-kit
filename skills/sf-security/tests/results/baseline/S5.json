@@ -1,0 +1,17 @@
+{
+  "id": "S5",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Recommends a Named Credential with an External Credential",
+      "met": true,
+      "evidence": "use a **Named Credential with an External Credential**"
+    },
+    {
+      "item": "Rejects custom settings, custom metadata, custom labels and code for secrets",
+      "met": false,
+      "evidence": "Rejects code, Custom Settings and Custom Metadata (\"Don't put the key in code, Custom Settings, or Custom Metadata\"), but Custom Labels are never mentioned or rejected."
+    }
+  ]
+}

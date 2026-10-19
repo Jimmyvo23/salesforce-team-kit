@@ -1,0 +1,22 @@
+{
+  "id": "S3",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Runs sf code-analyzer run (with --target force-app or the changed files) and reads the results",
+      "met": true,
+      "evidence": "sf code-analyzer run --target <changed files> --severity-threshold 2 --view detail"
+    },
+    {
+      "item": "States which severities block approval",
+      "met": true,
+      "evidence": "Critical (1) and High (2) violations always block."
+    },
+    {
+      "item": "Also checks CRUD/FLS, sharing, loops, hard-coded Ids, automation overlap, test asserts and the rollback plan",
+      "met": true,
+      "evidence": "Checklist rows: CRUD/FLS, Sharing keyword, SOQL or DML inside a loop, Hard-coded Ids, Automation overlap, Tests that assert behaviour, Rollback plan written down"
+    }
+  ]
+}

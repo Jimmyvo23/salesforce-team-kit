@@ -1,0 +1,22 @@
+{
+  "id": "S5",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Uses @wire (with a cacheable=true Apex method, or LDS/UI API) and the recordId property",
+      "met": true,
+      "evidence": "@AuraEnabled(cacheable=true) ... @api recordId; @wire(openForAccount, { accountId: '$recordId' })"
+    },
+    {
+      "item": "The Apex method enforces user access (WITH USER_MODE or equivalent) and runs with sharing",
+      "met": true,
+      "evidence": "public with sharing class CaseService ... WHERE AccountId = :accountId AND IsClosed = false WITH USER_MODE"
+    },
+    {
+      "item": "Uses SLDS or base Lightning components, and includes a Jest test",
+      "met": false,
+      "evidence": "Uses lightning-card and lightning-datatable, but no Jest test is included (not found)"
+    }
+  ]
+}

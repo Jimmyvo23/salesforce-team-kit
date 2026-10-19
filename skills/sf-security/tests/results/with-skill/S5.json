@@ -1,0 +1,17 @@
+{
+  "id": "S5",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Recommends a Named Credential with an External Credential",
+      "met": true,
+      "evidence": "Store the key in a **Named Credential backed by an External Credential**."
+    },
+    {
+      "item": "Rejects custom settings, custom metadata, custom labels and code for secrets",
+      "met": true,
+      "evidence": "Don't put it in any of these: Apex code or constants; Custom settings; Custom metadata; Custom labels"
+    }
+  ]
+}

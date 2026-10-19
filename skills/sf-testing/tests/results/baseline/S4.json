@@ -1,0 +1,17 @@
+{
+  "id": "S4",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Uses HttpCalloutMock with Test.setMock",
+      "met": false,
+      "evidence": "No test written; only says \"I'd write the test with an `HttpCalloutMock` and `Test.setMock(HttpCalloutMock.class, ...)`\""
+    },
+    {
+      "item": "Covers a success response and an error response (for example 500) with asserts",
+      "met": false,
+      "evidence": "No test code or asserts; only a plan listing \"the success path\" and \"the error path\""
+    }
+  ]
+}

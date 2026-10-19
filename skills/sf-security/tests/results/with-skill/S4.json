@@ -1,0 +1,22 @@
+{
+  "id": "S4",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Uses guest user sharing rules and the guest profile's minimum object and field permissions",
+      "met": true,
+      "evidence": "Provides a `sharingGuestRules` rule (Read, IsActive=true) and a guest profile with Product2 allowRead only plus read-only fields Description, ProductCode and Family."
+    },
+    {
+      "item": "Warns against giving guests edit access or using without sharing broadly",
+      "met": true,
+      "evidence": "\"Don't give guests Edit (or Delete, View All, Modify All) on Product2\" and \"Don't use `without sharing` Apex or system-mode queries to show guests more.\""
+    },
+    {
+      "item": "Mentions that guest records are owned by a default internal owner (secure guest access settings)",
+      "met": true,
+      "evidence": "\"Records guests create are owned by the site's default internal owner (site Preferences, secure guest user settings).\""
+    }
+  ]
+}

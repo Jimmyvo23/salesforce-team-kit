@@ -1,0 +1,22 @@
+{
+  "id": "S4",
+  "mode": "baseline",
+  "pass": true,
+  "items": [
+    {
+      "item": "Finds that OpportunityTrigger already sets Partner_Discount__c for renewals, so the two conflict",
+      "met": true,
+      "evidence": "`OpportunityTrigger.trigger:3`... sets `Partner_Discount__c = 5` for every Opportunity where `Type == 'Renewal'`. \"The two rules conflict.\""
+    },
+    {
+      "item": "Explains the order-of-execution problem (which one wins) and asks to consolidate into one place",
+      "met": true,
+      "evidence": "\"Before-save record-triggered flows run before before-triggers... The flow would set 10, then the trigger would set 5\"; \"Keep the logic in one place.\""
+    },
+    {
+      "item": "Gives a verdict of changes needed",
+      "met": true,
+      "evidence": "\"the flow as designed won't work, because the existing trigger overwrites it.\" plus a recommendation to consolidate."
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "S3",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Runs, or gives the exact `sf apex run test -o uat … --code-coverage --result-format json` command, and says to read the JSON results",
+      "met": true,
+      "evidence": "`sf apex run test -o uat --class-names OpportunityServiceTest --code-coverage --result-format json --wait 10 > test-result.json` and the \"Reading the test JSON\" section with jq commands"
+    },
+    {
+      "item": "Checks results with SOQL in the sandbox (sf data query -o uat)",
+      "met": true,
+      "evidence": "`sf data query -o uat -q \"SELECT Id, Name, Partner_Discount__c FROM Opportunity WHERE Name LIKE 'ZZ_TEST PD-1%'\"`"
+    },
+    {
+      "item": "Names and cleans up any test records it creates, and never uses production or real customer data",
+      "met": true,
+      "evidence": "Records named 'ZZ_TEST PD-1 Acct'/'ZZ_TEST PD-1 Opp'; step 5 deletes them and checks COUNT() is 0; \"`uat` is the team's sandbox alias... not production\""
+    }
+  ]
+}

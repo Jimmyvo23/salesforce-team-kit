@@ -1,0 +1,22 @@
+{
+  "id": "S3",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Uses a record-triggered flow, mentioning the Migrate to Flow tool or rebuilding its criteria and actions",
+      "met": true,
+      "evidence": "\"Use **Setup > Migrate to Flow** on `Opp_Stage_PB`\" and \"Rebuild by hand if the tool can't convert it\" with before-save and after-save record-triggered flow mapping"
+    },
+    {
+      "item": "Says to deactivate the Process Builder when the flow is activated, so both don't run, and to test in the sandbox first",
+      "met": true,
+      "evidence": "\"Activate the flow and deactivate `Opp_Stage_PB` in the same step... If both are active, every action happens twice.\" under \"Test, then activate in `uat`\""
+    },
+    {
+      "item": "Checks for other automation on Opportunity that overlaps",
+      "met": true,
+      "evidence": "\"Existing automation on Opportunity\" section with queries for flows, Apex triggers, workflow rules and validation rules, plus Flow Trigger Explorer"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "S1",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "One trigger that delegates to a handler class (no logic in the trigger body)",
+      "met": true,
+      "evidence": "trigger ContactTrigger on Contact (after insert, after update) { ContactTriggerHandler.afterSave(Trigger.new, Trigger.oldMap); }"
+    },
+    {
+      "item": "Bulkified: collects Account Ids, one query and one DML for the whole batch, no SOQL or DML inside a loop",
+      "met": true,
+      "evidence": "Set<Id> accountIds collected in a loop; a single SOQL \"WHERE Id IN :accountIds\" and a single \"update as user toUpdate;\" outside any loop"
+    },
+    {
+      "item": "Uses WITH USER_MODE (or Security.stripInaccessible / AccessLevel.USER_MODE) and a with sharing class",
+      "met": true,
+      "evidence": "public with sharing class ContactTriggerHandler; SOQL has \"WITH USER_MODE\"; DML is \"update as user toUpdate\""
+    },
+    {
+      "item": "The test inserts or updates 200 records and asserts the Account values with the Assert class (not only coverage)",
+      "met": true,
+      "evidence": "insertOf200ContactsSetsDateOnEveryAccount inserts 200 contacts (50 accounts x 4); \"Assert.areEqual(50, [SELECT COUNT() FROM Account WHERE Last_Contact_Date__c = :Date.today()]\""
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "S2",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Uses a permission set (or a permission set group) with field-level security, not a profile edit",
+      "met": true,
+      "evidence": "<fieldPermissions><field>Opportunity.Commission__c</field> in Opportunity_Commission_Read permission set, plus a Sales permission set group; \"I didn't touch any profile.\""
+    },
+    {
+      "item": "Grants only what is needed (read vs edit)",
+      "met": true,
+      "evidence": "<readable>true</readable><editable>false</editable>; \"Don't make the whole team editors.\" No object permissions added."
+    }
+  ]
+}

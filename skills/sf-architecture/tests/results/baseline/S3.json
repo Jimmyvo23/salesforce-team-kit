@@ -1,0 +1,22 @@
+{
+  "id": "S3",
+  "mode": "baseline",
+  "pass": true,
+  "items": [
+    {
+      "item": "Does not put a synchronous callout in a trigger or before-save context; uses an asynchronous pattern",
+      "met": true,
+      "evidence": "\"Asynchronous callout with `Queueable` and `Database.AllowsCallouts`\"; \"The callout would also hold up the user's save\"; alternative of Platform Events/CDC"
+    },
+    {
+      "item": "Uses a Named Credential (and External Credential) for the endpoint and authentication, with no hard-coded URL or secret",
+      "met": true,
+      "evidence": "\"Named Credential and External Credential for `https://erp.example.com`... Use `callout:ERP_Orders/api/orders`\"; \"Don't hardcode the URL or secrets in Apex\""
+    },
+    {
+      "item": "Covers failure handling: retries, logging or an error record",
+      "met": true,
+      "evidence": "\"On a 5xx or timeout, re-enqueue with a capped retry count\"; fields `ERP_Sync_Status__c`, `ERP_Last_Error__c`; \"A scheduled job can sweep Failed or stuck-Pending orders\""
+    }
+  ]
+}
