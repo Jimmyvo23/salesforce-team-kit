@@ -192,7 +192,7 @@ const isYes = (answer) => /^\s*y(es)?\s*$/i.test(answer);
 /**
  * Install, update or uninstall the Kit in one project.
  * @param {string} targetDir absolute path
- * @param { yes: boolean, setup: boolean, uninstall: boolean, io: { homeDir: string, cwd: string, nodeVersion: string, ask: (q: string) => Promise<string>, hasCommand: (cmd: string, args: string[]) => boolean, gitInit: (dir: string) => boolean, lookupInstanceUrl?: (alias: string) => string | null }, out: (s: string) => void, fail: (s: string) => number } o
+ * @param {{ yes: boolean, setup: boolean, uninstall: boolean, io: { homeDir: string, cwd: string, nodeVersion: string, ask: (q: string) => Promise<string>, hasCommand: (cmd: string, args: string[]) => boolean, gitInit: (dir: string) => boolean, lookupInstanceUrl?: (alias: string) => string | null }, out: (s: string) => void, fail: (s: string) => number }} o
  * @returns {Promise<{ code: number, summary: string }>}
  */
 async function installOne(targetDir, { yes, setup, uninstall, io, out, fail }) {
@@ -250,7 +250,7 @@ async function installOne(targetDir, { yes, setup, uninstall, io, out, fail }) {
 
   if (!yes && !isYes(await io.ask('Apply these changes? (y/n)'))) {
     out('No changes made.');
-    return { code: 0, summary: 'up to date' };
+    return { code: 0, summary: 'skipped (declined)' };
   }
 
   /** @type {Map<string, boolean>} */
@@ -282,6 +282,7 @@ async function installOne(targetDir, { yes, setup, uninstall, io, out, fail }) {
   const kept = [...decisions.values()].filter((d) => !d).length + changes.filter((c) => c.action === 'conflict' && c.symlink).length;
   applyChanges(changes, { targetDir, resolveConflict: (c) => decisions.get(c.path) === true });
   out(uninstall ? 'Uninstalled. team.json and handoffs were kept.' : 'Installed.');
+  if (uninstall) removeProject(io.homeDir, targetDir); else addProject(io.homeDir, targetDir);
   const createdTeam = changes.some((c) => c.path === '.team/team.json' && c.action === 'create');
   if (!uninstall && (createdTeam || setup)) {
     const err = await runSetup({ targetDir, firstInstall: createdTeam, yes, io, out });
@@ -293,7 +294,6 @@ async function installOne(targetDir, { yes, setup, uninstall, io, out, fail }) {
       .filter((e) => e.isFile() && /^events.*\.jsonl$/.test(e.name)).map((e) => `.team/${e.name}`);
     for (const log of logs) out(`Kept ${log} (the team's activity log); it is no longer git-ignored, so delete it or ignore it yourself before committing.`);
   }
-  if (uninstall) removeProject(io.homeDir, targetDir); else addProject(io.homeDir, targetDir);
   return { code: 0, summary: kept > 0 ? `kept ${kept} customised file${kept === 1 ? '' : 's'}` : 'updated' };
 }
 
@@ -334,9 +334,14 @@ export async function main(argv, io) {
         removeProject(io.homeDir, p);
         continue;
       }
-      const r = await installOne(p, { yes, setup: false, uninstall: false, io, out, fail: () => 1 });
-      if (r.code !== 0) failed = true;
-      out(`${p}: ${r.summary}`);
+      try {
+        const r = await installOne(p, { yes, setup: false, uninstall: false, io, out, fail: () => 1 });
+        if (r.code !== 0) failed = true;
+        out(`${p}: ${r.summary}`);
+      } catch (e) {
+        failed = true;
+        out(`${p}: failed: ${String(/** @type {Error} */ (e).message ?? e).split('\n')[0]}`);
+      }
     }
     return failed ? 1 : 0;
   }

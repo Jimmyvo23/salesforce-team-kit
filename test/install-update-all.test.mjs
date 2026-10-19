@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { main } from '../install.mjs';
-import { readRegistry, addProject } from '../lib/install/registry.mjs';
+import { readRegistry, addProject, REGISTRY } from '../lib/install/registry.mjs';
 
 let root, home, a, b;
 beforeEach(() => {
@@ -39,6 +39,7 @@ test('install registers, uninstall unregisters', async () => {
 test('updates every project, drops a missing one, never runs setup', async () => {
   await cli(['--target', a, '--yes']);
   await cli(['--target', b, '--yes']);
+  const teamA = fs.readFileSync(path.join(a, '.team', 'team.json'), 'utf8');
   const gone = path.join(root, 'gone');
   addProject(home, gone);
   fs.rmSync(path.join(b, '.team', 'bin', 'team-status.mjs'));
@@ -48,6 +49,8 @@ test('updates every project, drops a missing one, never runs setup', async () =>
   expect(r.out).toContain(`${b}: updated`);
   expect(r.out).toContain(`skipped ${gone}: not installed any more`);
   expect(r.out).not.toContain('Sandboxes found');
+  expect(r.out).not.toContain('Org setup done');
+  expect(fs.readFileSync(path.join(a, '.team', 'team.json'), 'utf8')).toBe(teamA);
   expect(readRegistry(home)).toEqual([a, b]);
 });
 
@@ -74,4 +77,28 @@ test('empty registry and flag conflicts', async () => {
   expect((await cli(['--update-all', '--target', a])).code).toBe(1);
   expect((await cli(['--update-all', '--uninstall'])).code).toBe(1);
   expect((await cli(['--update-all', '--setup'])).code).toBe(1);
+});
+
+test('an exception in one project is reported and the rest still run', async () => {
+  await cli(['--target', a, '--yes']);
+  await cli(['--target', b, '--yes']);
+  // a read-only registry makes addProject throw inside every project's install
+  const reg = path.join(home, REGISTRY);
+  fs.chmodSync(reg, 0o444);
+  try {
+    const r = await cli(['--update-all', '--yes']);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain(`${a}: failed: `);
+    expect(r.out).toContain(`${b}: failed: `);
+  } finally {
+    fs.chmodSync(reg, 0o644);
+  }
+});
+
+test('a customised kit file is kept and counted', async () => {
+  await cli(['--target', a, '--yes']);
+  fs.appendFileSync(path.join(a, '.claude', 'agents', 'qa.md'), '\nmy edit\n');
+  const r = await cli(['--update-all', '--yes']);
+  expect(r.code).toBe(0);
+  expect(r.out).toContain(`${a}: kept 1 customised file`);
 });
