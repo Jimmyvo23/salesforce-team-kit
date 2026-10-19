@@ -1,0 +1,17 @@
+{
+  "id": "S2",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Uses a permission set (or a permission set group) with field-level security, not a profile edit",
+      "met": true,
+      "evidence": "Permission set Opportunity_Commission_Read with <fieldPermissions> for Opportunity.Commission__c, bundled in a Sales group; \"I didn't touch any profiles.\""
+    },
+    {
+      "item": "Grants only what is needed (read vs edit)",
+      "met": true,
+      "evidence": "<readable>true</readable><editable>false</editable>; \"Read-only. Commission is pay data, so I gave read access and no edit.\""
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "S2",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Uses a permission set (or a permission set group) with field-level security, not a profile edit",
+      "met": false,
+      "evidence": "Only proposes it and asks: \"I'd suggest a new permission set, `Sales_Commission_Access`... Do you want that, or should I change the Sales profile instead?\" Nothing is written."
+    },
+    {
+      "item": "Grants only what is needed (read vs edit)",
+      "met": false,
+      "evidence": "Contradicts itself: the permission set is suggested with \"read and edit\", then \"I'd default to read-only unless Sales needs to edit it.\" No access is actually granted."
+    }
+  ]
+}
