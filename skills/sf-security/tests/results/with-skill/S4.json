@@ -6,7 +6,7 @@
     {
       "item": "Uses guest user sharing rules and the guest profile's minimum object and field permissions",
       "met": true,
-      "evidence": "Uses a sharingGuestRules entry (Read, criteria IsActive = true) plus a guest profile with Product2 allowRead only and field-level read on Description, ProductCode and Family."
+      "evidence": "Provides a `sharingGuestRules` rule (Read, IsActive=true) and a guest profile with Product2 allowRead only plus read-only fields Description, ProductCode and Family."
     },
     {
       "item": "Warns against giving guests edit access or using without sharing broadly",
@@ -16,7 +16,7 @@
     {
       "item": "Mentions that guest records are owned by a default internal owner (secure guest access settings)",
       "met": true,
-      "evidence": "\"Records guests create are owned by the site's default internal owner. That setting is in the site's Preferences under secure guest user settings.\""
+      "evidence": "\"Records guests create are owned by the site's default internal owner (site Preferences, secure guest user settings).\""
     }
   ]
 }

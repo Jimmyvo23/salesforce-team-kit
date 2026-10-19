@@ -50,7 +50,7 @@ Profiles keep the baseline that only profiles hold (default apps, record type de
 ## Record access (sharing)
 
 - Org-wide defaults set the floor. Open records up with sharing rules (owner- or criteria-based), role hierarchy, teams, or Apex managed sharing for code-driven cases.
-- `with sharing` Apex and user-mode queries respect all of it. `without sharing` ignores it: use it only in a small, commented class for a stated reason.
+- `with sharing` Apex and user-mode operations respect all of it. `without sharing` ignores it only for system-mode operations: at API 66.0 and earlier that is every operation without an access mode; at 67.0 and later only those written `WITH SYSTEM_MODE` / `as system`. Use it only in a small, commented class for a stated reason.
 
 ## Experience Cloud guest users
 
@@ -58,7 +58,7 @@ Facts that the platform enforces (secure guest user settings, always on):
 
 - Guest org-wide defaults are **Private** and can't be changed. Records reach guests only through **guest user sharing rules**: criteria-based, access level **Read** only. Manual sharing and Apex managed sharing can't grant guests access.
 - Guests can't have Edit, Delete, View All or Modify All on objects. Only Read and Create.
-- Records a guest creates are assigned to the site's **default record owner** (an active internal user, set in the site's Preferences). The guest doesn't own them and can't update them.
+- Records a guest creates are assigned to the site's **default record owner** (an active internal user, set in Setup > Digital Experiences > All Sites > Workspaces > Administration > Preferences). The guest doesn't own them and can't update them.
 
 ### Guest profile: object and field permissions
 
@@ -113,7 +113,7 @@ Narrow the criteria to what the public may see (for example an extra "Show on si
 ### Guest Apex and the default owner
 
 - Apex that a guest page calls: `with sharing`, `WITH USER_MODE`, Apex class access on the guest profile, and no method that returns or changes more than the sharing rule allows. Never solve "the guest can't see it" with `without sharing` or `WITH SYSTEM_MODE`.
-- If guests create records (a form), choose the default owner in the site's Preferences: an active internal user who should see them. Don't put every guest record on one user, and don't make it someone who may be deactivated.
+- If guests create records (a form), choose the default owner in Workspaces > Administration > Preferences: an active internal user with Read access to those records. Don't rely on it alone: route the records to different users or queues with assignment rules or automation (queues where possible), so one user doesn't own them all and a deactivated owner doesn't cause errors.
 - Product prices live in Pricebook2 and PricebookEntry. Exposing them is a separate decision: confirm with the user.
 - Verify with Setup → **Guest User Sharing Rule Access Report**, and test the site as a guest in the sandbox.
 
@@ -171,6 +171,8 @@ Grant the principal to the users (or integration user) that run the callout:
     <externalCredentialPrincipal>ERP-ERP_Principal</externalCredentialPrincipal>
 </externalCredentialPrincipalAccesses>
 ```
+
+If the callout sends the header formula literally instead of the key, enable Allow Formulas in HTTP Header (`allowMergeFieldsInHeader`) on the Named Credential; confirm in a sandbox (not verified in the primary docs).
 
 Apex: `req.setEndpoint('callout:ERP/v1/orders');`. Never log request headers. If the sandbox should call a test ERP, keep the same Named Credential name and change the URL and key per org.
 

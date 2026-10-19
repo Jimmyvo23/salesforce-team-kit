@@ -6,17 +6,17 @@
     {
       "item": "Names SOQL injection as the problem",
       "met": true,
-      "evidence": "Your line has a **SOQL injection** hole. `searchTerm` goes straight into the query text"
+      "evidence": "Your original line concatenates `searchTerm` straight into the query string, which is SOQL injection."
     },
     {
       "item": "Fixes it with a bind variable (or Database.queryWithBinds), or String.escapeSingleQuotes as a fallback",
       "met": true,
-      "evidence": "String pattern = '%' + searchTerm.trim() + '%'; ... WHERE Name LIKE :pattern"
+      "evidence": "WHERE Name LIKE :pattern ... \"Bind variable: the input is data, never part of the query text.\""
     },
     {
       "item": "Adds user-mode access checking",
       "met": true,
-      "evidence": "WITH USER_MODE"
+      "evidence": "WITH USER_MODE ... \"this enforces object permissions, field-level security and sharing.\""
     }
   ]
 }

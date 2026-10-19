@@ -25,7 +25,7 @@ Every answer gives the **least access that does the job** and **does the work**:
 
 | Class saved at API… | Database operations by default | Class with no sharing keyword |
 |---|---|---|
-| **66.0 or earlier** | **system mode**: no CRUD/FLS checks | depends on the caller, often **without sharing** |
+| **66.0 or earlier** | **system mode**: no CRUD/FLS checks | Aura and `@AuraEnabled` entry points: with sharing; other entry points: without sharing; non-entry classes: the caller's mode |
 | **67.0 or later** | user mode | with sharing |
 
 Write it explicitly at every version, so the code means the same after a version bump:
@@ -34,6 +34,7 @@ Write it explicitly at every version, so the code means the same after a version
 - **Every query says `WITH USER_MODE`**, every DML says `insert as user` / `update as user`, every `Database` method passes `AccessLevel.USER_MODE`.
 - `WITH USER_MODE` sits **after `WHERE` and before `ORDER BY` / `LIMIT`**: `... WHERE AccountId = :accountId WITH USER_MODE ORDER BY LastName LIMIT 200`.
 - **User mode also enforces sharing**, whatever the class keyword says.
+- **At 67.0+, `without sharing` only affects operations explicitly set to system mode** (`WITH SYSTEM_MODE` / `as system`). Every other operation runs in user mode and enforces sharing, so the keyword alone gives no extra record access.
 - **System mode (`WITH SYSTEM_MODE`, `as system`) skips CRUD and FLS only.** Record sharing then comes from the class keyword, so `as system` inside a `with sharing` class still can't touch records the user can't see. Use it on one statement, with a comment saying why, and tell the user.
 - Don't use `WITH SECURITY_ENFORCED`. It is not allowed at 67.0 and later. Use `WITH USER_MODE`.
 - To return what the user may see instead of failing: `Security.stripInaccessible(AccessType.READABLE, records).getRecords()`. Spell it exactly. The result type is `SObjectAccessDecision`.
@@ -101,15 +102,15 @@ Guest access is locked down by the platform. Work with it:
 
 - **Records:** guest org-wide defaults are always **Private**. The only way to share records with guests is a **guest user sharing rule** (criteria-based, **Read only**). Manual sharing and Apex managed sharing can't share to guests. Keep the criteria narrow (for example `IsActive = true` and a "show on site" flag): anyone on the internet sees every match.
 - **Object and field permissions go on the site's guest user profile.** This is the one place where a profile is right: each site has its own guest profile with exactly one user, and it's where Salesforce sets up guest access. **Read** on the object, Read FLS on only the fields the page shows. Write it as the profile's `objectPermissions` and `fieldPermissions` (retrieve the profile from the sandbox first). Leave out required fields such as `Name`: they are always readable and their field permissions can't be deployed.
-- **Never** try to give guests Edit, Delete, View All or Modify All. The platform blocks them for guests. Never work around it with a `without sharing` class or a system-mode query that returns more than the sharing rule allows. Any `@AuraEnabled` method a guest calls is `with sharing` and `WITH USER_MODE`, and the guest profile needs Apex class access for it.
-- **Records guests create are owned by a default internal owner**, set in the site's Preferences (secure guest user settings). Guests don't own records, see them later only if a guest sharing rule matches, and can't update them. Pick an active, non-guest owner, and don't make one person own all records.
+- **Never** try to give guests Edit, Delete, View All or Modify All. The platform blocks them for guests. Never work around it with system-mode queries in a `without sharing` class (or anything else that returns more than the sharing rule allows). Any `@AuraEnabled` method a guest calls is `with sharing` and `WITH USER_MODE`, and the guest profile needs Apex class access for it.
+- **Records guests create are owned by a default internal owner**, set in the site's Preferences (secure guest user settings). Guests don't own records, see them later only if a guest sharing rule matches, and can't update them. Pick an active, non-guest owner. Don't rely on the default owner alone: route guest-created records to different users or queues with assignment rules or automation, so one person doesn't own them all.
 - Prices need Pricebook2 and PricebookEntry access too. Confirm with the user before exposing them.
 - After setup, check **Guest User Sharing Rule Access Report** in Setup and test as the guest user in the sandbox.
 
 **Every guest answer ends with a "Guest safety" section** that tells the user, in these words or close to them:
 1. **Don't give guests Edit** (or Delete, View All, Modify All) on this object, even if asked later. Read is the most a guest gets.
 2. **Don't use `without sharing` Apex (or system-mode queries) to show guests more.** Any Apex the site calls is `with sharing` and `WITH USER_MODE`.
-3. **Records guests create are owned by the site's default internal owner** (secure guest user settings, site Preferences). Check that an active internal user is set, and that it isn't one person for everything.
+3. **Records guests create are owned by the site's default internal owner** (secure guest user settings, site Preferences). Check that an active internal user is set, and route the records to different users or queues with assignment rules or automation, so one person doesn't own everything.
 
 Metadata for the guest profile and the sharing rule: `references/access-model.md`.
 
@@ -117,7 +118,7 @@ Metadata for the guest profile and the sharing rule: `references/access-model.md
 
 API keys, passwords, tokens and client secrets go in a **Named Credential with an External Credential**:
 
-1. **External Credential**: protocol `Custom` for an API key (or `Oauth` if the system supports it). Add a **principal**, and enter the key there in Setup, in each org. Salesforce stores it encrypted. For a header, add an `externalCredentialParameters` entry with `parameterType` `AuthHeader`: its `parameterName` is the header name (`X-API-Key`) and its `parameterValue` is a formula such as `{!$Credential.ERP.ApiKey}`. There are no `headerName` / `headerValue` fields. Copy the XML in `references/access-model.md`.
+1. **External Credential**: protocol `Custom` for an API key (or `Oauth` if the system supports it). Add a **principal**, and enter the key there in Setup, in each org. Salesforce stores it encrypted. For a header, add an `externalCredentialParameters` entry with `parameterType` `AuthHeader`: its `parameterName` is the header name (`X-API-Key`) and its `parameterValue` is a formula such as `{!$Credential.ERP.ApiKey}`. The metadata XML has no `headerName` / `headerValue` fields. Copy the XML in `references/access-model.md`.
 2. **Named Credential**: the base URL, linked to the External Credential.
 3. **Permission set** with **External Credential Principal Access** for the users (or integration user) that run the callout.
 4. Apex calls `callout:ERP/path` and never sees the key.

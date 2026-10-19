@@ -6,12 +6,12 @@
     {
       "item": "Recommends a Named Credential with an External Credential",
       "met": true,
-      "evidence": "Store it in a **Named Credential backed by an External Credential**. Apex then calls `callout:ERP/...` and never sees the key."
+      "evidence": "Store the key in a **Named Credential backed by an External Credential**."
     },
     {
       "item": "Rejects custom settings, custom metadata, custom labels and code for secrets",
       "met": true,
-      "evidence": "Under \"Where not to put the key\": \"Apex code or constants\", \"Custom settings: every profile can read them\", \"Custom metadata: it's stored and deployed as plain text\", \"Custom labels: they're plain text\""
+      "evidence": "Don't put it in any of these: Apex code or constants; Custom settings; Custom metadata; Custom labels"
     }
   ]
 }

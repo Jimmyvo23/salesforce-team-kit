@@ -6,17 +6,17 @@
     {
       "item": "Enforces CRUD/FLS (WITH USER_MODE, or Security.stripInaccessible)",
       "met": true,
-      "evidence": "SOQL includes `WITH USER_MODE`; explained as enforcing CRUD and field-level security."
+      "evidence": "SELECT Id, Name, Title, Email, Phone FROM Contact WHERE AccountId = :accountId WITH USER_MODE"
     },
     {
       "item": "The class runs with sharing",
       "met": true,
-      "evidence": "`public with sharing class AccountContactsController`"
+      "evidence": "public with sharing class AccountContactsController"
     },
     {
       "item": "Queries only the fields needed, not every field",
       "met": true,
-      "evidence": "`SELECT Id, Name, Title, Email, Phone` and \"named fields, not all fields\""
+      "evidence": "Queries named fields (Id, Name, Title, Email, Phone). \"Named fields, not all fields. I didn't return every field.\""
     }
   ]
 }

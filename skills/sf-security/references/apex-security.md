@@ -9,7 +9,7 @@ Use `sourceApiVersion` from `sfdx-project.json` for every `-meta.xml`. The keywo
 | `WITH USER_MODE`, `as user`, `AccessLevel.USER_MODE` | enforced | **always enforced**, whatever the class keyword |
 | `WITH SYSTEM_MODE`, `as system`, `AccessLevel.SYSTEM_MODE` | skipped | from the class keyword (`with sharing` still enforces it) |
 | neither, API 66.0 or earlier | skipped (system mode) | from the class keyword |
-| neither, API 67.0 or later | enforced (user mode) | from the class keyword (default `with sharing`) |
+| neither, API 67.0 or later | enforced (user mode) | always enforced (default user mode), whatever the keyword |
 | `with sharing` alone | **not** checked by the keyword | enforced |
 | `Security.stripInaccessible(AccessType.READABLE, rows)` | removes fields and relationships the user can't read | doesn't change which rows you have |
 

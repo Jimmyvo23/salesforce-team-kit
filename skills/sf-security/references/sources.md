@@ -1,6 +1,6 @@
 # Sources
 
-On 2026-10-19, developer.salesforce.com returned HTTP 403 to WebFetch and curl, and help.salesforce.com pages render only with JavaScript. The Security Implementation Guide PDF now redirects to a help.salesforce.com page, and there is no LWC or Experience Cloud PDF (`salesforce_lwc_dev_guide.pdf`, `salesforce_communities_implementation.pdf` and similar names return 404). So the Apex Developer Guide, Metadata API Developer Guide, Object Reference and SOQL and SOSL Reference were read in their official PDF editions (all v68.0, Winter '27), and help topics were checked through WebSearch limited to help.salesforce.com and developer.salesforce.com.
+On 2026-10-19, developer.salesforce.com returned HTTP 403 to WebFetch and curl, and help.salesforce.com pages render only with JavaScript. The Security Implementation Guide PDF now redirects to a help.salesforce.com page, and there is no LWC PDF or general Experience Cloud PDF (`salesforce_lwc_dev_guide.pdf`, `salesforce_communities_implementation.pdf` and similar names return 404). So the Apex Developer Guide, Metadata API Developer Guide, Object Reference and SOQL and SOSL Reference were read in their official PDF editions (all v68.0, Winter '27), and help topics were checked through WebSearch limited to help.salesforce.com and developer.salesforce.com.
 
 ## Read in the official PDFs
 
@@ -18,6 +18,9 @@ On 2026-10-19, developer.salesforce.com returned HTTP 403 to WebFetch and curl, 
 - Metadata: PermissionSet `fieldPermissions` (required-field permissions can't be deployed), `externalCredentialPrincipalAccesses` (API 59.0+); PermissionSetGroup and MutingPermissionSet; SharingRules `sharingGuestRules` (Read only, `sharedTo.guestUser`); SharingSettings (guest org-wide defaults always Private from API 50.0); ExternalCredential (`Custom` protocol, `AuthHeader` parameter as a formula, credentials encrypted); NamedCredential (`SecuredEndpoint`, `Url`, `Authentication`): https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/api_meta.pdf (Metadata API Developer Guide v68.0) (checked 2026-10-19)
 - Product2 supports sharing rules (Product2OwnerSharingRule, API 50.0): https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/object_reference.pdf ("Product2") (checked 2026-10-19)
 
+- Secure guest users (Winter '27, last updated 2026-07-22): guest records get a default owner, set at Setup > Digital Experiences > All Sites > Workspaces > Administration > Preferences; don't use the default owner as the only assignment method, use assignment rules, processes or triggers to route records to users or queues; more than one owner; queues where possible: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/communities_secure_guest_users.pdf ("Assign Records Created by Guest Users to a Default User in the Org", "Best Practices and Considerations for Using the Guest Record Default Owner", PDF p.20) (checked 2026-10-19)
+- At API 67.0 and later an operation with no access mode runs in user mode, which reapplies sharing and overrides a `without sharing` context: https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf ("Use the with sharing, without sharing, and inherited sharing Keywords", trigger example, PDF p.94–95; "Set an Access Mode for Database Operations" note, PDF p.223) (checked 2026-10-19)
+
 ## Checked through search (official pages)
 
 - Secure guest user record access (guest org-wide defaults Private; guest user sharing rules only; Read only; no manual or Apex sharing): https://help.salesforce.com/s/articleView?id=platform.networks_secure_guest_user_sharing.htm&language=en_US&type=5 (checked 2026-10-19)
@@ -32,5 +35,5 @@ On 2026-10-19, developer.salesforce.com returned HTTP 403 to WebFetch and curl, 
 
 ## Not confirmed in a full read
 
+- Whether a header formula needs Allow Formulas in HTTP Header (`allowMergeFieldsInHeader`) on the Named Credential.
 - The exact External Credential formula syntax (`{!$Credential.<ExternalCredential>.<parameter>}`) comes from the Metadata API description of `AuthHeader` ("a formula of a header value") plus search excerpts; check it in Setup when building.
-- The Setup label and location of the guest default-owner setting (site Preferences) come from search excerpts of the help pages.
