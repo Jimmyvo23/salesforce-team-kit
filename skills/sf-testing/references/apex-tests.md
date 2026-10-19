@@ -119,7 +119,7 @@ private class GoldCasePriorityTest {
 
 Expected results for the restricted user depend on how the logic runs:
 - **Record-triggered flow** (system context without sharing, see the sf-flow skill): the record saves and the field **is** set.
-- **Apex in user mode** that writes the field (`update as user`, or default user mode at 67.0+): the save **fails** for this user. Assert the `DmlException` with `Assert.fail('Expected DmlException')` in a try/catch, or change the code, and say which one the story wants.
+- **Apex with a user-mode DML statement** that writes the field (`update as user`, or plain DML at API 67.0+): the save **fails** for this user. A before-save trigger that only assigns the field on `Trigger.new` does no DML of its own, so no FLS check happens and the value is set. Assert the `DmlException` with `Assert.fail('Expected DmlException')` in a try/catch, or change the code, and say which one the story wants.
 - If the story doesn't say, state your assumption in the answer and in a comment on the test.
 
 ## Restricted user built inside the test
@@ -149,7 +149,7 @@ public class RestrictedUser {
             Map<String, Schema.SObjectField> fieldMap =
                 Schema.getGlobalDescribe().get(sobjectName).getDescribe().fields.getMap();
             for (String f : editFields) {
-                if (!fieldMap.get(f).getDescribe().isPermissionable()) { continue; }   // required, OwnerId, master-detail
+                if (!fieldMap.get(f).getDescribe().isPermissionable()) { continue; }   // e.g. OwnerId, master-detail
                 perms.add(new FieldPermissions(ParentId = ps.Id, SobjectType = sobjectName,
                     Field = sobjectName + '.' + f, PermissionsRead = true, PermissionsEdit = true));
             }
@@ -166,7 +166,7 @@ public class RestrictedUser {
 ```
 
 - Grant **Edit** on every field the test sets inside `runAs` (`insert as user` checks them), and **Read** on every field the code under test filters or sorts on: at API 67.0+ database operations default to user mode, which checks `WHERE` and `ORDER BY` fields too.
-- Grant the object access the platform requires (for example, Opportunity and Contact permissions need Read on Account). Fields whose `isPermissionable()` is false (required fields, `OwnerId`, master-detail) have no field permissions: inserting one fails, and users can always edit them.
+- Grant the object access the platform requires (for example, Opportunity and Contact permissions need Read on Account). Some fields have no field permissions (for example `OwnerId`, master-detail and universally required fields): inserting one fails. Check `isPermissionable()` (the helper does).
 - If the team already has the real permission set in the project, assign it instead (`[SELECT Id FROM PermissionSet WHERE Name = '...']`) and assert the precondition the same way.
 - Parent records: the restricted user needs record access to the parent it references. Make the user the owner, or create the parent inside `runAs`.
 

@@ -10,12 +10,12 @@ description: Use when writing or reviewing Salesforce tests in an SFDX project -
 A test proves a behaviour with an assert. **Coverage is a floor, asserts are the goal.** Every answer delivers the full test code, even when you can't write files (then put every file in the answer, with its path and its `-meta.xml`). Don't stop at questions: when something is missing, state the assumption, write the tests, and say what to change if it's wrong.
 
 **Answer shape, in this order:**
-1. **Coverage request** ("get it to 75%", "whatever gets it over the line"): the answer's first two sentences are, in your words: *"I won't add tests without assertions just to push coverage over 75%: they pass even when the code is wrong. 75% is the floor Salesforce requires to deploy, not the goal, so these tests assert each behaviour of the class, and the coverage follows."* Nothing comes before them, not even a note about tools.
+1. **Coverage request** ("get it to 75%", "whatever gets it over the line"): the answer's first line is the heading `## Coverage is a floor`, and under it these two sentences (your words, same meaning): *"I won't add tests without assertions just to push coverage over 75%: they pass even when the code is wrong. 75% is the floor Salesforce requires to deploy, not the goal, so these tests assert each behaviour of the class, and the coverage follows."*
 2. Assumptions, a few lines.
 3. The test plan table (section 1), or for a sandbox check the verification runbook (section 6).
 4. Every file in full, with its path.
 5. The test-run command and what to read in the JSON (section 5).
-6. Last, one line: *"Next: save the files at the paths shown (Write is disabled here), run the command above against the sandbox, and paste the output."* Adapt it to what this session couldn't do. **Never open the answer with it.**
+6. One line on what this session couldn't do, at the start (after the coverage heading and sentences, when there are any) or at the end, for example: *"Not run yet: save the files at the paths shown (<why you couldn't write them>), run the command above against the sandbox, and paste the output."* Say it once.
 
 Before saying a component is missing, search the project: `**/*.flow-meta.xml`, `**/objects/<Object>/fields/*`, `**/classes/*.cls`.
 
@@ -48,7 +48,7 @@ Don't assume a profile lacks access ("Standard User probably can't edit it"). **
 
 1. A user on the **Minimum Access - Salesforce** profile with a **unique Username** (usernames are unique across all orgs: add a random number and `.test`).
 2. A **permission set** created in the test: `ObjectPermissions` for the object (plus Read on Account for Opportunity or Contact), and `FieldPermissions` with **Edit** on the fields the test sets and **Read only** (`PermissionsEdit = false`) on the field under test. Or assign the team's real permission set if it's in the project.
-   **Only permissionable fields get `FieldPermissions`.** Required fields (for example Opportunity `Name`, `StageName`, `CloseDate`), `OwnerId` and master-detail fields have none, and inserting one fails. Skip any field whose `getDescribe().isPermissionable()` is false (the helper in `references/apex-tests.md` does).
+   **Only permissionable fields get `FieldPermissions`.** Some fields have none (for example `OwnerId`, master-detail and universally required fields), and inserting one fails. Check `getDescribe().isPermissionable()` and skip the field when it's false (the helper in `references/apex-tests.md` does). The field you **withhold** must be permissionable too: a test can't take away access users always have, so pick another field for a "no access" test.
 3. Do all of that setup DML (User, PermissionSet, ObjectPermissions, FieldPermissions, PermissionSetAssignment) inside **`System.runAs(new User(Id = UserInfo.getUserId()))`**. Mixing it with Account or Opportunity DML otherwise throws `MIXED_DML_OPERATION`.
 4. Give the user **record access to parents**: make them the owner of the test Account, or create it inside `runAs`.
 5. Inside `System.runAs(u)`: assert the precondition (`Schema.SObjectType.Case.fields.Priority.isUpdateable()` is false), then `insert as user` the record (`as user` checks this user's CRUD and FLS at every API version).
@@ -56,13 +56,17 @@ Don't assume a profile lacks access ("Standard User probably can't edit it"). **
 
 Wherever user mode applies (`as user`, `WITH USER_MODE`, or the default at API 67.0+), the runAs user needs **Edit on every field the test sets**, lookups such as `AccountId` included, and **Read on every field the code selects, filters or sorts on** (`WHERE`, `ORDER BY`). Otherwise the test fails on access, not on the behaviour.
 
-**Expected result:** a record-triggered flow runs in **system context without sharing** (see the sf-flow skill), so it still sets a field the user can't edit: assert the value. Apex that writes the field in user mode fails for this user: assert the `DmlException`. If the story doesn't say which, state the assumption.
+**Expected result:** a record-triggered flow runs in **system context without sharing** (see the sf-flow skill), so it still sets a field the user can't edit: assert the value. Apex fails for this user only when a **user-mode DML statement** writes the field (`update as user`, or plain DML at API 67.0+): assert the `DmlException`. A before-save trigger that assigns the field on `Trigger.new` does no DML of its own, so no FLS check happens and the value is set. If the story doesn't say which, state the assumption.
 
 Full class, `RestrictedUser` helper and factory: `references/apex-tests.md`.
 
 ## 4. Coverage is a floor
 
-When asked to "just get it over 75%" or "add whatever gets it over the line", the answer **starts with the two sentences in the Answer shape** (the refusal and "75% is the floor, not the goal"). Then:
+When asked to "just get it over 75%" or "add whatever gets it over the line", the answer **starts with the heading `## Coverage is a floor` and these two sentences** (your words, same meaning):
+
+> I won't add tests without assertions just to push coverage over 75%: they pass even when the code is wrong. 75% is the floor Salesforce requires to deploy, not the goal, so these tests assert each behaviour of the class, and the coverage follows.
+
+Then:
 - Aim to cover every behaviour: positive, negative, bulk and restricted user.
 - Find **which** lines are uncovered (the JSON `coverage` `lines` map, value `0`, see section 5) and write one test per behaviour those lines implement.
 - Check **which** number it is: one class, or org-wide. Deployment needs 75% across the Apex in the org, every trigger needs some coverage, and `RunSpecifiedTests` needs 75% for each class and trigger in the deployment. Production runs the tests again on its own data and metadata, so its number can differ from the sandbox's.
@@ -83,20 +87,20 @@ sf apex run test -o uat --class-names GoldCasePriorityTest --code-coverage --res
 - Always pass `-o <sandbox alias>`. Never rely on the CLI's default org.
 - `--wait` makes the command wait for the results (otherwise it returns only a test run Id; fetch it with `sf apex get test -o uat --test-run-id <id> --code-coverage --result-format json`). A failing run exits with code 100.
 - **Read the JSON**: `result.summary.outcome` (`Passed`/`Failed`), `passing`, `failing`; each `result.tests[]` entry whose `Outcome` isn't `Pass`, with its `Message` and `StackTrace`; `result.coverage.coverage[]` `coveredPercent` per class. `jq` lines are in `references/test-plan.md`.
-- Before handing over, run `--test-level RunLocalTests` once to catch what the change broke elsewhere.
+- Before handing over, run `sf apex run test -o uat --test-level RunLocalTests --code-coverage --result-format json --wait 30` once to catch what the change broke elsewhere. `orgWideCoverage` appears only with `--code-coverage`.
 - If you can't run commands, give the exact command and say what to read in the output. Don't report a result you didn't see.
 
 ## 6. Verify a change in the sandbox (UAT)
 
 "It's deployed to uat, verify it" gets a **verification runbook**: numbered steps, each with the exact command for the sandbox alias and its expected result. Run it if you have a shell. If you don't, the runbook **is** the answer: give it in full, with real names filled in, never placeholders like `<story id>` alone.
 
-**The answer's first line is the runbook heading** (for example "## Verifying T-099 in uat"), then the runbook. Say what hasn't run **once, in the closing line**, not in an opening paragraph: "Next: run steps 1–6 against uat and paste the output. I'll fill in Actual and Result, and I won't call the change verified until then." With a shell, run the steps yourself and fill in the report.
+Start the runbook by naming the target: "`uat` is the team's sandbox alias (`.team/team.json` `orgs.sandbox`), not production." Say plainly what hasn't run, once, at the start or at the end, for example: "Nothing here has run against uat yet. Run steps 1–6 and paste the output: I'll fill in Actual and Result, and I won't call the change verified until then." With a shell, run the steps yourself and fill in the report.
 
 1. **Find the change**: the story, `git log` / `git diff`, the changed files under `force-app`. If nothing names it, verify the most likely change from the project (for example a new field or flow) and say so.
 2. **Confirm it's there**, metadata only: `sf sobject describe -o uat -s Opportunity` (the new field), Tooling API SOQL for the class, `FlowDefinitionView` for the active flow version. Don't read real records to check a field.
-3. **Run the Apex tests** for the changed classes. If you wrote a new test class, deploy only that class to the sandbox (`sf project deploy start -o uat -m ApexClass:OpportunityServiceTest`), never the whole `force-app` folder over the builder's work. If a class with that name may already exist there (`TestDataFactory` often does), retrieve it and add to it instead of replacing it. Then: `sf apex run test -o uat --class-names <TestClass> --code-coverage --result-format json --wait 10 > test-result.json`, then read the JSON (section 5).
+3. **Run the Apex tests** for the changed classes. If you wrote a new test class, deploy only that class to the sandbox (`sf project deploy start -o uat -m ApexClass:OpportunityServiceTest`), never the whole `force-app` folder over the builder's work. If a class with that name may already exist there (`TestDataFactory` often does), retrieve it and add to it instead of replacing it. A new restricted-user test uses the `RestrictedUser` helper in `references/apex-tests.md`, granting Edit on every field the test sets (`AccountId` included), not a hand-built user. Then: `sf apex run test -o uat --class-names <TestClass> --code-coverage --result-format json --wait 10 > test-result.json`, then read the JSON (section 5).
 4. **Check each criterion with marked test records and SOQL**: `sf data create record -o uat -s Account -v "Name='ZZ_TEST T-099 Gold' Tier__c=Gold"`, then the record under test on that Account, then `sf data query -o uat -q "SELECT Id, Subject, Priority FROM Case WHERE Subject LIKE 'ZZ_TEST T-099%'"`. Compare with the expected value. Create your own parent records. Never touch real customer records.
-5. **Clean up**: `sf data delete record -o uat -s Case -i <id>` for every record you created (children first), then `sf data query -o uat -q "SELECT COUNT() FROM Account WHERE Name LIKE 'ZZ_TEST T-099%'"` returns 0.
+5. **Clean up**: `sf data delete record -o uat -s Case -i <id>` for every record you created (children first), then `sf data query -o uat -q "SELECT COUNT() FROM Account WHERE Name LIKE 'ZZ_TEST T-099%'"` returns 0. A test class you deployed for the check stays only if it belongs to the change (then commit it to the project so it travels with the change set). Otherwise list it for removal from the sandbox.
 6. **Report** a table: criterion, command, expected, actual, pass or fail. Leave "actual" empty for anything not run, and don't call the change verified until it's filled in.
 
 Never use production, production data or real customer records. Full runbook and report template: `references/test-plan.md`.
@@ -124,8 +128,7 @@ Example: `references/apex-tests.md`. Async callouts and chaining: sf-apex `refer
 | Assertion-free coverage tests, or 75% treated as the goal | Refuse, then write behaviour tests |
 | `sf` command without `-o <sandbox alias>`, or without `--result-format json` when reading results | Add them |
 | Test records without a `ZZ_TEST` name or cleanup, or a check that reads real records | Name, delete, re-query; check fields with `sf sobject describe` |
-| Coverage answer that doesn't open with the refusal and "75% is a floor" | Add the two sentences from section 4 |
-| Answer opens with what the session couldn't do | Move it to one closing line |
+| Coverage answer that doesn't open with `## Coverage is a floor` and the two sentences | Add them at the top (section 4) |
 | Callout test without a failure response | Add a 500 test |
 | Stopped with questions, or no code because files can't be written | Write it in the answer with stated assumptions |
 | Mentions deploying or validating to production | Remove it. A person deploys with change sets. |

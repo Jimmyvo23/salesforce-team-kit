@@ -48,7 +48,7 @@ The output is `{ "status": <exit code>, "result": { "summary", "tests", "coverag
 | `result.tests[]` where `Outcome` is not `Pass` | `FullName`, `Message`, `StackTrace` of each failure (`Fail`, `CompileFail`, `Skip`) |
 | `result.coverage.coverage[]` | Per class or trigger: `name`, `coveredPercent`, `totalLines`, `totalCovered`, and `lines` (line number → `1` covered, `0` not covered) |
 | `result.summary.testRunCoverage` | Coverage of the classes this run touched |
-| `result.summary.orgWideCoverage` | Coverage of all Apex in the org |
+| `result.summary.orgWideCoverage` | Coverage of all Apex in the org (only with `--code-coverage`) |
 
 ```sh
 jq '.result.summary | {outcome, testsRan, passing, failing, testRunCoverage, orgWideCoverage}' test-result.json

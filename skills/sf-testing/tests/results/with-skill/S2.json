@@ -11,7 +11,7 @@
     {
       "item": "Writes tests that assert behaviour, and treats 75% as a floor, not the goal",
       "met": true,
-      "evidence": "75% is the floor Salesforce requires to deploy, not the goal, so these tests assert each behaviour of the class. Tests use Assert.areEqual, Assert.isTrue and Assert.fail on results, empty input, bulk and permissions."
+      "evidence": "\"75% is the floor Salesforce requires to deploy, not the goal\"; tests use Assert.areEqual(2, result.size()) and Assert.fail with a QueryException catch."
     }
   ]
 }

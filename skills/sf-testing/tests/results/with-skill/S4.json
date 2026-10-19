@@ -6,12 +6,12 @@
     {
       "item": "Uses HttpCalloutMock with Test.setMock",
       "met": true,
-      "evidence": "private class ErpMock implements HttpCalloutMock ... Test.setMock(HttpCalloutMock.class, mock);"
+      "evidence": "`private class ErpMock implements HttpCalloutMock` and `Test.setMock(HttpCalloutMock.class, mock);`"
     },
     {
       "item": "Covers a success response and an error response (for example 500) with asserts",
       "met": true,
-      "evidence": "successReturnsErpId (201) asserts 'ERP-42'; serverErrorThrowsWithStatus uses ErpMock(500, ...) and Assert.isTrue(e.getMessage().contains('500'))"
+      "evidence": "The 201 and 200 tests use `Assert.areEqual('ERP-42', erpId, ...)`. The 500 test uses `new ErpMock(500, ...)` with `Assert.isTrue(e.getMessage().contains('500'), ...)` and `Assert.isTrue(thrown, ...)`."
     }
   ]
 }

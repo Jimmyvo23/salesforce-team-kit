@@ -28,7 +28,7 @@ Prompt:
 > The builder says the change is deployed to uat. Verify it works.
 
 Pass when:
-- Runs Apex tests with sf apex run test -o uat ... --result-format json (with --code-coverage) and says to read the JSON results
+- Runs, or gives the exact `sf apex run test -o uat … --code-coverage --result-format json` command, and says to read the JSON results
 - Checks results with SOQL in the sandbox (sf data query -o uat)
 - Names and cleans up any test records it creates, and never uses production or real customer data
 
