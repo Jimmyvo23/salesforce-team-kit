@@ -33,9 +33,9 @@ node install.mjs --target "../Salesforce Automation Clean up 2026/automation-cle
 
 It prints every change it will make and asks `Apply these changes? (y/n)`. Add `--yes` to skip that question.
 
-The first install into a project runs setup: it asks for the project name, lists the sf aliases on this Mac whose instance URL is a sandbox (production and aliases it can't look up are shown as skipped), and writes the ones you pick to `orgs.sandbox`. It also creates an org knowledge skill skeleton in `.claude/skills/<org>-org/` and the story `docs/stories/T-000-org-discovery.md`; ask the Architect to run T-000 to fill the skill from the sandbox. Neither file is ever overwritten or removed by the installer. Re-run setup any time with `--setup`. With `--yes`, setup asks nothing and chooses no sandboxes, so the guard blocks every org command until you run `--setup`.
+The first install into a project runs setup: it asks for the project name, lists the sf aliases on this Mac whose instance URL is a sandbox (production and aliases it can't look up are shown as skipped), and writes the ones you pick to `orgs.sandbox`. It also creates an org knowledge skill skeleton in `.claude/skills/<org>-org/` and the story `docs/stories/T-000-org-discovery.md`; ask the Architect to run T-000 to fill the skill from the sandbox. Neither file is ever overwritten or removed by the installer. Re-run setup any time with `--setup`. With `--yes` on a first install, setup asks nothing and chooses no sandboxes, so the guard blocks every org command until you run `--setup`; `--yes --setup` on an existing project keeps your list.
 
-Every install is remembered in `~/.salesforce-team-kit/projects.json`. After updating the kit, update every project at once:
+Every install is remembered in `~/.salesforce-team-kit/projects.json`. After updating the kit, update every project at once (it never runs setup, and `--yes` keeps files you customised):
 
 ```
 node install.mjs --update-all
@@ -51,7 +51,7 @@ What it puts in the project:
 - `.team/team.json` (the team, the approver, `orgs.sandbox` and `orgSkill`; edit it for your project)
 - `.team/kit-manifest.json`, a marked "Team" section in `CLAUDE.md` and a marked block in `.gitignore`
 
-Then edit `.team/team.json`:
+Setup fills `orgSkill` and `orgs.sandbox` for you (re-run it with `node install.mjs --target <project> --setup`). You can still edit `.team/team.json` by hand:
 
 ```json
 "orgSkill": "nitro-salesforce",
@@ -74,7 +74,7 @@ Uninstall:
 node install.mjs --target "../my-project" --uninstall
 ```
 
-This removes the kit's files, hooks, the deny rule and the marked blocks. It keeps `.team/team.json`, your handoffs in `.team/handoffs/`, `.claude/settings.json.bak` and the activity logs.
+This removes the kit's files, hooks, the deny rule, the marked blocks and the project's entry in `~/.salesforce-team-kit/projects.json`. It keeps `.team/team.json`, your handoffs in `.team/handoffs/`, the org knowledge skill, `docs/stories/T-000-org-discovery.md`, `.claude/settings.json.bak` and the activity logs.
 
 ## Running the office
 

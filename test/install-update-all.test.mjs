@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { main } from '../install.mjs';
-import { readRegistry, addProject, REGISTRY } from '../lib/install/registry.mjs';
+import { readRegistry, addProject } from '../lib/install/registry.mjs';
 
 let root, home, a, b;
 beforeEach(() => {
@@ -82,17 +82,15 @@ test('empty registry and flag conflicts', async () => {
 test('an exception in one project is reported and the rest still run', async () => {
   await cli(['--target', a, '--yes']);
   await cli(['--target', b, '--yes']);
-  // a read-only registry makes addProject throw inside every project's install
-  const reg = path.join(home, REGISTRY);
-  fs.chmodSync(reg, 0o444);
-  try {
-    const r = await cli(['--update-all', '--yes']);
-    expect(r.code).toBe(1);
-    expect(r.out).toContain(`${a}: failed: `);
-    expect(r.out).toContain(`${b}: failed: `);
-  } finally {
-    fs.chmodSync(reg, 0o644);
+  // a manifest path that is a directory makes reading it throw inside the project's install
+  for (const d of [a, b]) {
+    fs.rmSync(path.join(d, '.team', 'kit-manifest.json'));
+    fs.mkdirSync(path.join(d, '.team', 'kit-manifest.json'));
   }
+  const r = await cli(['--update-all', '--yes']);
+  expect(r.code).toBe(1);
+  expect(r.out).toContain(`${a}: failed: `);
+  expect(r.out).toContain(`${b}: failed: `);
 });
 
 test('a customised kit file is kept and counted', async () => {
@@ -101,4 +99,34 @@ test('a customised kit file is kept and counted', async () => {
   const r = await cli(['--update-all', '--yes']);
   expect(r.code).toBe(0);
   expect(r.out).toContain(`${a}: kept 1 customised file`);
+});
+
+test('a recreated team.json does not trigger setup under --update-all', async () => {
+  await cli(['--target', a, '--yes']);
+  fs.rmSync(path.join(a, '.team', 'team.json'));
+  fs.rmSync(path.join(a, '.claude', 'skills', 'a-org'), { recursive: true, force: true });
+  const r = await cli(['--update-all', '--yes']);
+  expect(r.code).toBe(0);
+  expect(r.out).not.toContain('Org setup done');
+  expect(r.out).not.toContain('Created .claude/skills');
+  expect(r.out).toContain(`team.json was recreated; run node install.mjs --target ${a} --setup`);
+});
+
+test('the failure line carries the reason', async () => {
+  await cli(['--target', a, '--yes']);
+  const r = await cli(['--update-all', '--yes']);
+  expect(r.code).toBe(0);
+  const bad = await (async () => {
+    let out = '';
+    const code = await main(['--update-all', '--yes'], {
+      cwd: root, homeDir: home, nodeVersion: 'v24.1.0',
+      hasCommand: (cmd) => cmd !== 'sf', gitInit: () => true,
+      stdout: (s) => { out += s; }, stderr: (s) => { out += s; },
+      ask: async () => '', lookupInstanceUrl: () => null,
+    });
+    return { code, out };
+  })();
+  expect(bad.code).toBe(1);
+  expect(bad.out).toMatch(/: failed: Cannot install yet: - .*/);
+  expect(bad.out.split('\n').filter((l) => l.includes('failed:'))).toHaveLength(1);
 });

@@ -68,6 +68,50 @@ describe('first install, interactive', () => {
   });
 });
 
+describe('registry and prompts', () => {
+  test('an unwritable registry only warns; install and setup still complete', async () => {
+    fs.writeFileSync(path.join(home, '.salesforce-team-kit'), 'a file, not a folder');
+    const r = await cli(['--target', target, '--yes']);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("Warning: could not update ~/.salesforce-team-kit/projects.json (");
+    expect(r.out).toContain("--update-all won't include this project.");
+    expect(r.out).toContain('Org setup done');
+  });
+
+  test('announces the lookups', async () => {
+    const r = await cli(['--target', target], ['y', '', '', '']);
+    expect(r.out).toContain('Looking up 3 alias(es)…');
+  });
+
+  test('Enter drops a listed alias whose lookup now fails, and says so', async () => {
+    await cli(['--target', target, '--yes']);
+    const t = team();
+    t.orgs.sandbox = ['dev', 'uat'];
+    fs.writeFileSync(path.join(target, '.team', 'team.json'), JSON.stringify(t));
+    delete URLS.uat;
+    try {
+      const r = await cli(['--target', target, '--setup'], ['', '', '']);
+      expect(r.out).toContain('Removed from orgs.sandbox: uat (could not look up)');
+      expect(team().orgs.sandbox).toEqual(['dev']);
+    } finally {
+      URLS.uat = 'https://acme--uat.sandbox.my.salesforce.com';
+    }
+  });
+
+  test('--setup skips a team.json that is a symlink', async () => {
+    await cli(['--target', target, '--yes']);
+    const real = path.join(root, 'real-team.json');
+    const f = path.join(target, '.team', 'team.json');
+    fs.renameSync(f, real);
+    fs.symlinkSync(real, f);
+    const before = fs.readFileSync(real, 'utf8');
+    const r = await cli(['--target', target, '--yes', '--setup']);
+    expect(r.out).toContain('Skipped setup: .team/team.json is a symlink.');
+    expect(r.out).not.toContain('Org setup done');
+    expect(fs.readFileSync(real, 'utf8')).toBe(before);
+  });
+});
+
 describe('--yes', () => {
   test('first install: no lookups, no sandboxes, default skill, hint printed', async () => {
     const r = await cli(['--target', target, '--yes']);

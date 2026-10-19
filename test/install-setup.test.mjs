@@ -13,6 +13,10 @@ afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 const put = (rel, text) => { fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), text); };
 
 describe('readAliases', () => {
+  test('skips names starting with a dash', () => {
+    put('.sfdx/alias.json', JSON.stringify({ orgs: { '--json': 'x', '-o': 'y', dev: 'z' } }));
+    expect(readAliases({ homeDir: root })).toEqual(['dev']);
+  });
   test('merges both alias files, sorted and unique', () => {
     put('.sfdx/alias.json', JSON.stringify({ orgs: { uat: 'a@x.com.uat', prod: 'a@x.com' } }));
     put('.sf/alias.json', JSON.stringify({ orgs: { uat: 'a@x.com.uat', dev: 'a@x.com.dev' } }));
@@ -77,11 +81,17 @@ describe('names', () => {
 describe('texts', () => {
   test('skeleton has frontmatter and the seven sections, each not discovered yet', () => {
     const s = orgSkillSkeleton({ skill: 'clientx-org', project: 'Client X' });
-    expect(s).toMatch(/^---\nname: clientx-org\ndescription: Use when working in the Client X Salesforce org: /);
+    expect(s).toMatch(/^---\nname: clientx-org\ndescription: "Use when working in the Client X Salesforce org: .*"\n---\n/);
     for (const h of ['Org basics', 'Automation by object', 'Key objects and fields', 'Apex and integrations', 'Conventions', 'Known gotchas', 'Sources']) {
       expect(s).toContain(`## ${h}`);
     }
     expect(s.match(/Not discovered yet — run T-000\./g)).toHaveLength(7);
+  });
+  test('skeleton frontmatter description is a JSON string even for awkward project names', () => {
+    const s = orgSkillSkeleton({ skill: 'a-b-1-org', project: 'A: B #1' });
+    const line = s.split('\n').find((l) => l.startsWith('description: '));
+    const text = JSON.parse(line.slice('description: '.length));
+    expect(text).toMatch(/^Use when working in the A: B #1 Salesforce org: /);
   });
   test('discovery story names the skill and forbids deploys and data changes', () => {
     const s = discoveryStory({ skill: 'clientx-org', project: 'Client X' });
@@ -98,5 +108,15 @@ describe('writeIfMissing', () => {
     expect(writeIfMissing(f, 'one')).toBe(true);
     expect(writeIfMissing(f, 'two')).toBe(false);
     expect(fs.readFileSync(f, 'utf8')).toBe('one');
+  });
+});
+
+describe('writeIfMissing and symlinks', () => {
+  test('a dangling symlink counts as present and is not written through', () => {
+    const link = path.join(root, 'link.md');
+    const dest = path.join(root, 'elsewhere.md');
+    fs.symlinkSync(dest, link);
+    expect(writeIfMissing(link, 'x')).toBe(false);
+    expect(fs.existsSync(dest)).toBe(false);
   });
 });

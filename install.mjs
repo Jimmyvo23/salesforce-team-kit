@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
 // salesforce-team-kit installer.
-// Usage: node install.mjs --target <project> [--setup] [--uninstall] [--yes]
+// Usage: node install.mjs --target <project> [--setup] [--uninstall] [--yes] | node install.mjs --update-all [--yes]
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -106,6 +106,10 @@ export function formatDiff(a, b, { context = 2, max = 40 } = {}) {
  */
 async function runSetup({ targetDir, firstInstall, yes, io, out }) {
   const teamFile = path.join(targetDir, '.team', 'team.json');
+  if (fs.lstatSync(teamFile, { throwIfNoEntry: false })?.isSymbolicLink()) {
+    out('Skipped setup: .team/team.json is a symlink.');
+    return null;
+  }
   /** @type {any} */
   let team;
   try {
@@ -131,7 +135,9 @@ async function runSetup({ targetDir, firstInstall, yes, io, out }) {
       out(`No sandboxes chosen. Run node install.mjs --target ${targetDir} --setup to choose them.`);
     }
   } else {
-    const { sandboxes, skipped } = classifyAliases(readAliases({ homeDir: io.homeDir }), lookup);
+    const aliases = readAliases({ homeDir: io.homeDir });
+    if (aliases.length > 0) out(`Looking up ${aliases.length} alias(es)…`);
+    const { sandboxes, skipped } = classifyAliases(aliases, lookup);
     /** @type {string[]} */
     const current = Array.isArray(team.orgs.sandbox) ? team.orgs.sandbox : [];
     if (sandboxes.length === 0) {
@@ -154,6 +160,11 @@ async function runSetup({ targetDir, firstInstall, yes, io, out }) {
         out('Please answer with numbers from the list.');
       }
       team.orgs.sandbox = picked.map((i) => sandboxes[i].alias);
+      for (const alias of current) {
+        if (team.orgs.sandbox.includes(alias)) continue;
+        const reason = skipped.find((s) => s.alias === alias)?.reason ?? (aliases.includes(alias) ? 'not selected' : 'not in your sf aliases');
+        out(`Removed from orgs.sandbox: ${alias} (${reason})`);
+      }
     }
     if (sandboxes.length === 0 && skipped.length > 0) {
       out('Skipped:');
@@ -192,13 +203,22 @@ const isYes = (answer) => /^\s*y(es)?\s*$/i.test(answer);
 /**
  * Install, update or uninstall the Kit in one project.
  * @param {string} targetDir absolute path
- * @param {{ yes: boolean, setup: boolean, uninstall: boolean, io: { homeDir: string, cwd: string, nodeVersion: string, ask: (q: string) => Promise<string>, hasCommand: (cmd: string, args: string[]) => boolean, gitInit: (dir: string) => boolean, lookupInstanceUrl?: (alias: string) => string | null }, out: (s: string) => void, fail: (s: string) => number }} o
+ * @param {{ yes: boolean, setup: boolean, uninstall: boolean, io: { homeDir: string, cwd: string, nodeVersion: string, ask: (q: string) => Promise<string>, hasCommand: (cmd: string, args: string[]) => boolean, gitInit: (dir: string) => boolean, lookupInstanceUrl?: (alias: string) => string | null }, out: (s: string) => void, fail: (s: string) => number, noSetup?: boolean }} o
  * @returns {Promise<{ code: number, summary: string }>}
  */
-async function installOne(targetDir, { yes, setup, uninstall, io, out, fail }) {
+async function installOne(targetDir, { yes, setup, uninstall, io, out, fail, noSetup = false }) {
+  const register = () => {
+    try {
+      if (uninstall) removeProject(io.homeDir, targetDir); else addProject(io.homeDir, targetDir);
+    } catch (e) {
+      const err = /** @type {NodeJS.ErrnoException} */ (e);
+      out(`Warning: could not update ~/.salesforce-team-kit/projects.json (${err.code ?? err.message}); --update-all won't include this project.`);
+    }
+  };
   const done = (/** @type {string} */ message) => {
     fail(message);
-    return { code: 1, summary: `failed: ${message.split('\n')[0]}` };
+    const [header, ...problems] = message.split('\n');
+    return { code: 1, summary: `failed: ${[header, problems.join('; ')].filter(Boolean).join(' ')}` };
   };
   const warnOrgSkill = () => {
     if (uninstall) return;
@@ -236,7 +256,7 @@ async function installOne(targetDir, { yes, setup, uninstall, io, out, fail }) {
   const unchanged = changes.length - pending.length;
   if (pending.length === 0) {
     out(`Nothing to do in ${targetDir}; everything is up to date.`);
-    if (uninstall) removeProject(io.homeDir, targetDir); else addProject(io.homeDir, targetDir);
+    register();
     if (setup) {
       const err = await runSetup({ targetDir, firstInstall: false, yes, io, out });
       if (err) return done(err);
@@ -282,9 +302,11 @@ async function installOne(targetDir, { yes, setup, uninstall, io, out, fail }) {
   const kept = [...decisions.values()].filter((d) => !d).length + changes.filter((c) => c.action === 'conflict' && c.symlink).length;
   applyChanges(changes, { targetDir, resolveConflict: (c) => decisions.get(c.path) === true });
   out(uninstall ? 'Uninstalled. team.json and handoffs were kept.' : 'Installed.');
-  if (uninstall) removeProject(io.homeDir, targetDir); else addProject(io.homeDir, targetDir);
+  register();
   const createdTeam = changes.some((c) => c.path === '.team/team.json' && c.action === 'create');
-  if (!uninstall && (createdTeam || setup)) {
+  if (!uninstall && noSetup && createdTeam) {
+    out(`team.json was recreated; run node install.mjs --target ${targetDir} --setup`);
+  } else if (!uninstall && !noSetup && (createdTeam || setup)) {
     const err = await runSetup({ targetDir, firstInstall: createdTeam, yes, io, out });
     if (err) return done(err);
   }
@@ -335,7 +357,7 @@ export async function main(argv, io) {
         continue;
       }
       try {
-        const r = await installOne(p, { yes, setup: false, uninstall: false, io, out, fail: () => 1 });
+        const r = await installOne(p, { yes, setup: false, uninstall: false, io, out, fail: () => 1, noSetup: true });
         if (r.code !== 0) failed = true;
         out(`${p}: ${r.summary}`);
       } catch (e) {
