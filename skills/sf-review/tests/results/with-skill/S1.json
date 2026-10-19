@@ -1,0 +1,27 @@
+{
+  "id": "S1",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Flags SOQL inside the loop and DML inside the loop, with line references",
+      "met": true,
+      "evidence": "`DiscountJob.cls:4`: the SOQL query is inside the `for` loop; `DiscountJob.cls:7`: the DML is inside the loop"
+    },
+    {
+      "item": "Flags the hard-coded record type Id",
+      "met": true,
+      "evidence": "`DiscountJob.cls:5`: the record type Id `'012000000000ABC'` is hard-coded, and Ids differ between orgs"
+    },
+    {
+      "item": "Flags missing sharing keyword and missing user-mode access checks",
+      "met": true,
+      "evidence": "`DiscountJob.cls:1`: there is no sharing keyword; SOQL query has no `WITH USER_MODE`; `update as user`"
+    },
+    {
+      "item": "Gives a clear verdict of changes needed, with a note per issue",
+      "met": true,
+      "evidence": "**Verdict: Changes needed** — T-012, followed by numbered items each with a Fix"
+    }
+  ]
+}

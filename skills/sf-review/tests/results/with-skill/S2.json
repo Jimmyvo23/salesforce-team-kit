@@ -1,0 +1,17 @@
+{
+  "id": "S2",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Notices the test has no assertions and rejects coverage-only testing",
+      "met": true,
+      "evidence": "the test has no assertions. It inserts one Account and one Opportunity, calls `apply`, and checks nothing, so 90% coverage only shows the lines ran."
+    },
+    {
+      "item": "Asks for asserts on the expected values, a bulk test and a negative case before approving",
+      "met": true,
+      "evidence": "use `Assert.areEqual(expected, actual)` on each field; \"Add one that runs 200+ Opportunities\"; \"Add Opportunities on a non-Partner Account and one with a null `AccountId`\"; \"I haven't approved T-012.\""
+    }
+  ]
+}

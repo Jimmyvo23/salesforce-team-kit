@@ -1,0 +1,27 @@
+{
+  "id": "S1",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Flags SOQL inside the loop and DML inside the loop, with line references",
+      "met": true,
+      "evidence": "\"SOQL in a loop (line 4)\" and \"DML in a loop (line 7)\""
+    },
+    {
+      "item": "Flags the hard-coded record type Id",
+      "met": true,
+      "evidence": "\"Hardcoded record type ID (line 5). '012000000000ABC' differs between orgs and sandboxes\""
+    },
+    {
+      "item": "Flags missing sharing keyword and missing user-mode access checks",
+      "met": true,
+      "evidence": "\"The class has no sharing declaration. Add with sharing or inherited sharing deliberately. Consider WITH USER_MODE on the query as well.\""
+    },
+    {
+      "item": "Gives a clear verdict of changes needed, with a note per issue",
+      "met": false,
+      "evidence": "The verdict \"request changes\" is clear and most issues have notes. But the answer says it \"couldn't find a T-012 spec anywhere in the project\", so it can't check the code against the task. The sharing and user-mode point is also listed under 'Smaller points' and not as a blocking issue."
+    }
+  ]
+}

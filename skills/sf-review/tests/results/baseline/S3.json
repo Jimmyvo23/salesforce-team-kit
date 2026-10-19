@@ -1,0 +1,22 @@
+{
+  "id": "S3",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Runs sf code-analyzer run (with --target force-app or the changed files) and reads the results",
+      "met": false,
+      "evidence": "not found. The answer mentions running lint and type checks generically, but never names sf code-analyzer."
+    },
+    {
+      "item": "States which severities block approval (for example severity 1 and 2, or high and critical)",
+      "met": false,
+      "evidence": "not found"
+    },
+    {
+      "item": "Also checks CRUD/FLS, sharing, loops, hard-coded Ids, automation overlap, test asserts and the rollback plan",
+      "met": false,
+      "evidence": "The answer lists generic checks only: \"input validation, injection risks, authentication and authorization\", \"N+1 queries\", and tests. It does not mention CRUD/FLS, sharing, hard-coded Ids, automation overlap, test asserts or a rollback plan."
+    }
+  ]
+}

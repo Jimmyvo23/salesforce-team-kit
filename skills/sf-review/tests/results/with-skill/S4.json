@@ -1,0 +1,22 @@
+{
+  "id": "S4",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Finds that OpportunityTrigger already sets Partner_Discount__c for renewals, so the two conflict",
+      "met": true,
+      "evidence": "The existing before-insert/before-update trigger already writes `Partner_Discount__c` (set to 5 when `Type == 'Renewal'`). The new Renewal_Discount flow would be a second writer on the same field."
+    },
+    {
+      "item": "Explains the order-of-execution problem (which one wins) and asks to consolidate into one place",
+      "met": true,
+      "evidence": "A before-save flow runs first (step 3) and a before trigger runs after it (step 4). So the trigger overwrites the flow... Fix: keep one place for this rule."
+    },
+    {
+      "item": "Gives a verdict of changes needed",
+      "met": true,
+      "evidence": "**Verdict: Changes needed** — T-012 (design review)"
+    }
+  ]
+}

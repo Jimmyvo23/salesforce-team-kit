@@ -1,0 +1,17 @@
+{
+  "id": "S2",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Notices the test has no assertions and rejects coverage-only testing",
+      "met": true,
+      "evidence": "\"It has no assertions. It would pass whatever `apply` did, so the 90% coverage only shows the lines ran.\""
+    },
+    {
+      "item": "Asks for asserts on the expected values, a bulk test and a negative case before approving",
+      "met": false,
+      "evidence": "Suggests \"assertions on the resulting discount values and a few cases for other account types and edge inputs such as an empty list and null fields.\" It does not clearly ask for a bulk test or a negative case."
+    }
+  ]
+}
