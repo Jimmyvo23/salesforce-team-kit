@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
 // salesforce-team-kit installer.
-// Usage: node install.mjs --target <project> [--uninstall] [--yes]
+// Usage: node install.mjs --target <project> [--setup] [--uninstall] [--yes]
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,9 +11,13 @@ import { spawnSync } from 'node:child_process';
 import { checkPrereqs, isGitRepo, findSkill } from './lib/install/checks.mjs';
 import { planInstall, planUninstall, applyChanges } from './lib/install/plan.mjs';
 import { loadTeam } from './lib/team.mjs';
+import {
+  readAliases, classifyAliases, sfInstanceUrl, parseSelection, defaultProjectName, defaultOrgName,
+  orgSkillSkeleton, discoveryStory, writeIfMissing, STORY_PATH,
+} from './lib/install/setup.mjs';
 
 const KIT_DIR = path.dirname(fileURLToPath(import.meta.url));
-const USAGE = 'Usage: node install.mjs --target <project> [--uninstall] [--yes]';
+const USAGE = 'Usage: node install.mjs --target <project> [--setup] [--uninstall] [--yes] | node install.mjs --update-all [--yes]';
 
 /**
  * Lines added and removed going from `a` to `b` (line-based LCS).
@@ -94,12 +98,91 @@ export function formatDiff(a, b, { context = 2, max = 40 } = {}) {
   return [...out.slice(0, max - 1), `... ${out.length - (max - 1)} more lines`];
 }
 
+/**
+ * First-run setup: project name, sandbox list and org knowledge skill, written into .team/team.json.
+ * @param {{ targetDir: string, firstInstall: boolean, yes: boolean, io: { homeDir: string, ask: (q: string) => Promise<string>, lookupInstanceUrl?: (alias: string) => string | null }, out: (s: string) => void }} o
+ */
+async function runSetup({ targetDir, firstInstall, yes, io, out }) {
+  const teamFile = path.join(targetDir, '.team', 'team.json');
+  const team = JSON.parse(fs.readFileSync(teamFile, 'utf8'));
+  team.orgs = team.orgs && typeof team.orgs === 'object' ? team.orgs : {};
+  const lookup = io.lookupInstanceUrl ?? sfInstanceUrl;
+  const foundSkill = (/** @type {unknown} */ name) => typeof name === 'string' && name !== ''
+    && findSkill({ name, targetDir, homeDir: io.homeDir });
+
+  let project = firstInstall || typeof team.project !== 'string' || !team.project ? defaultProjectName(targetDir) : team.project;
+  if (!yes) {
+    const answer = (await io.ask(`Project name [${project}]:`)).trim();
+    if (answer) project = answer;
+  }
+  team.project = project;
+
+  if (yes) {
+    if (firstInstall) {
+      team.orgs.sandbox = [];
+      out(`No sandboxes chosen. Run node install.mjs --target ${targetDir} --setup to choose them.`);
+    }
+  } else {
+    const { sandboxes, skipped } = classifyAliases(readAliases({ homeDir: io.homeDir }), lookup);
+    /** @type {string[]} */
+    const current = Array.isArray(team.orgs.sandbox) ? team.orgs.sandbox : [];
+    if (sandboxes.length === 0) {
+      out('No sandbox aliases found. Log in yourself with: sf org login web --alias <name> --instance-url https://test.salesforce.com');
+      if (firstInstall) team.orgs.sandbox = [];
+    } else {
+      out('Sandboxes found:');
+      sandboxes.forEach((s, i) => out(`  ${i + 1}) ${s.alias}  (${s.host})${current.includes(s.alias) ? ' [selected]' : ''}`));
+      const preselected = sandboxes.flatMap((s, i) => (current.includes(s.alias) ? [i] : []));
+      if (skipped.length > 0) {
+        out('Skipped:');
+        for (const s of skipped) out(`  ${s.alias}: ${s.reason}`);
+      }
+      /** @type {number[]} */
+      let picked = preselected;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const answer = await io.ask('Sandboxes the team may use (numbers, comma-separated; Enter keeps [selected]; "none" for none):');
+        const parsed = parseSelection(answer, sandboxes.length, preselected);
+        if (parsed !== null) { picked = parsed; break; }
+        out('Please answer with numbers from the list.');
+      }
+      team.orgs.sandbox = picked.map((i) => sandboxes[i].alias);
+    }
+    if (sandboxes.length === 0 && skipped.length > 0) {
+      out('Skipped:');
+      for (const s of skipped) out(`  ${s.alias}: ${s.reason}`);
+    }
+  }
+
+  let skill = `${defaultOrgName(project)}-org`;
+  let writeSkeleton = true;
+  const old = team.orgSkill;
+  if (yes) {
+    if (foundSkill(old)) { skill = old; writeSkeleton = false; }
+  } else {
+    const org = (await io.ask(`Org name for the knowledge skill [${defaultOrgName(project)}]:`)).trim();
+    if (org) skill = `${defaultOrgName(org)}-org`;
+    if (foundSkill(old) && old !== skill) {
+      if (isYes(await io.ask(`Switch orgSkill from "${old}" to "${skill}"? (y/n)`))) { /* use the new skill */ } else { skill = old; writeSkeleton = false; }
+    }
+  }
+  team.orgSkill = skill;
+  fs.writeFileSync(teamFile, `${JSON.stringify(team, null, 2)}\n`);
+
+  /** @type {[string, string][]} */
+  const files = [[`.claude/skills/${skill}/SKILL.md`, orgSkillSkeleton({ skill, project })], [STORY_PATH, discoveryStory({ skill, project })]];
+  for (const [rel, content] of files) {
+    if (rel.startsWith('.claude/') && !writeSkeleton) continue;
+    if (writeIfMissing(path.join(targetDir, ...rel.split('/')), content)) out(`Created ${rel}`);
+  }
+  out(`Org setup done. In Claude Code, ask the Architect to run T-000 to fill ${skill}.`);
+}
+
 /** @param {string} answer */
 const isYes = (answer) => /^\s*y(es)?\s*$/i.test(answer);
 
 /**
  * @param {string[]} argv arguments after the script name
- * @param {{ cwd: string, homeDir: string, nodeVersion: string, stdout: (s: string) => void, stderr: (s: string) => void, ask: (question: string) => Promise<string>, hasCommand: (cmd: string, args: string[]) => boolean, gitInit: (dir: string) => boolean }} io
+ * @param {{ cwd: string, homeDir: string, nodeVersion: string, stdout: (s: string) => void, stderr: (s: string) => void, ask: (question: string) => Promise<string>, hasCommand: (cmd: string, args: string[]) => boolean, gitInit: (dir: string) => boolean, lookupInstanceUrl?: (alias: string) => string | null }} io
  * @returns {Promise<number>} exit code
  */
 export async function main(argv, io) {
@@ -110,7 +193,7 @@ export async function main(argv, io) {
   try {
     ({ values } = parseArgs({
       args: argv,
-      options: { target: { type: 'string' }, uninstall: { type: 'boolean' }, yes: { type: 'boolean' } },
+      options: { target: { type: 'string' }, uninstall: { type: 'boolean' }, yes: { type: 'boolean' }, setup: { type: 'boolean' } },
       strict: true,
       allowPositionals: false,
     }));
@@ -120,6 +203,7 @@ export async function main(argv, io) {
   if (!values.target) return fail(`Missing --target. ${USAGE}`);
   const targetDir = path.resolve(io.cwd, values.target);
   const uninstall = values.uninstall === true;
+  if (uninstall && values.setup) return fail(`--setup cannot be combined with --uninstall. ${USAGE}`);
   const warnOrgSkill = () => {
     if (uninstall) return;
     const team = loadTeam(path.join(targetDir, '.team', 'team.json'));
@@ -156,6 +240,7 @@ export async function main(argv, io) {
   const unchanged = changes.length - pending.length;
   if (pending.length === 0) {
     out(`Nothing to do in ${targetDir}; everything is up to date.`);
+    if (values.setup) await runSetup({ targetDir, firstInstall: false, yes: values.yes === true, io, out });
     warnOrgSkill();
     return 0;
   }
@@ -196,6 +281,10 @@ export async function main(argv, io) {
 
   applyChanges(changes, { targetDir, resolveConflict: (c) => decisions.get(c.path) === true });
   out(uninstall ? 'Uninstalled. team.json and handoffs were kept.' : 'Installed.');
+  const createdTeam = changes.some((c) => c.path === '.team/team.json' && c.action === 'create');
+  if (!uninstall && (createdTeam || values.setup)) {
+    await runSetup({ targetDir, firstInstall: createdTeam, yes: values.yes === true, io, out });
+  }
   warnOrgSkill();
   if (uninstall && fs.existsSync(path.join(targetDir, '.team'))) {
     const logs = fs.readdirSync(path.join(targetDir, '.team'), { withFileTypes: true })
@@ -245,6 +334,7 @@ if (isMain()) {
     stdout: (s) => process.stdout.write(s),
     stderr: (s) => process.stderr.write(s),
     ask,
+    lookupInstanceUrl: sfInstanceUrl,
     hasCommand: (cmd, args) => spawnSync(cmd, args, { stdio: 'ignore', timeout: 60_000 }).status === 0,
     gitInit: (dir) => spawnSync('git', ['init', '-q'], { cwd: dir, stdio: 'ignore' }).status === 0,
   });

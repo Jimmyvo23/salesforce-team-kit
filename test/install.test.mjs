@@ -97,6 +97,7 @@ async function cli(args, o = {}) {
     nodeVersion: 'v24.1.0',
     hasCommand: o.hasCommand ?? (() => true),
     gitInit: (dir) => spawnSync('git', ['init', '-q'], { cwd: dir }).status === 0,
+    lookupInstanceUrl: () => null,
     stdout: (s) => { out += s; },
     stderr: (s) => { err += s; },
     ask: async (q) => {
@@ -380,7 +381,8 @@ describe('installed scripts', () => {
 });
 
 describe('uninstall', () => {
-  const ignoredAfter = (rel) => rel === '.team/team.json' || rel.startsWith('.team/handoffs/') || rel === '.claude/settings.json.bak';
+  const ignoredAfter = (rel) => rel === '.team/team.json' || rel.startsWith('.team/handoffs/') || rel === '.claude/settings.json.bak'
+    || rel === '.claude/skills/my-project-org/SKILL.md' || rel === 'docs/stories/T-000-org-discovery.md';
 
   test('uninstall leaves the repo as before except team.json and handoffs', async () => {
     write('CLAUDE.md', '# My project\n\nSome rules.\n');
@@ -411,9 +413,11 @@ describe('uninstall', () => {
     expect(r.code).toBe(0);
     expect(exists('CLAUDE.md')).toBe(false);
     expect(exists('.gitignore')).toBe(false);
-    expect(exists('.claude')).toBe(false);
+    expect(exists('.claude/settings.json')).toBe(false);
+    expect(exists('.claude/agents')).toBe(false);
     expect(exists('.team/bin')).toBe(false);
-    expect(Object.keys(snapshot())).toEqual(['.team/team.json']);
+    // the org skill skeleton and the discovery story are the user's and stay
+    expect(Object.keys(snapshot()).sort()).toEqual(['.claude/skills/my-project-org/SKILL.md', '.team/team.json', 'docs/stories/T-000-org-discovery.md']);
     expect(fs.readdirSync(p('.team/handoffs'))).toEqual([]);
   });
 
@@ -737,7 +741,7 @@ describe('salesforce install checks', () => {
     expect(no.code).toBe(1);
     expect(no.questions[0]).toMatch(/not a Git repository. Run "git init"/);
     expect(exists('.git')).toBe(false);
-    const yes = await cli(['--target', target], { answers: ['y', 'y'] });
+    const yes = await cli(['--target', target], { answers: ['y', 'y', '', ''] });
     expect(yes.code).toBe(0);
     expect(exists('.git')).toBe(true);
     expect(yes.out).toMatch(/Ran git init/);
@@ -753,8 +757,14 @@ describe('salesforce install checks', () => {
   });
 
   test('warns when the org knowledge skill is not found, and not when it is', async () => {
+    // setup writes a skeleton, so a first install is silent
     const r = await install();
-    expect(r.out).toMatch(/org knowledge skill "my-org-knowledge" was not found/);
+    expect(r.out).not.toMatch(/was not found/);
+    const t = JSON.parse(read('.team/team.json'));
+    t.orgSkill = 'my-org-knowledge';
+    write('.team/team.json', `${JSON.stringify(t, null, 2)}\n`);
+    const warned = await install();
+    expect(warned.out).toMatch(/org knowledge skill "my-org-knowledge" was not found/);
     fs.mkdirSync(path.join(home, '.claude', 'skills', 'my-org-knowledge'), { recursive: true });
     fs.writeFileSync(path.join(home, '.claude', 'skills', 'my-org-knowledge', 'SKILL.md'), '---\nname: my-org-knowledge\n---\n');
     const again = await install();
