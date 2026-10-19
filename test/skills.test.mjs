@@ -62,6 +62,6 @@ function listRefs(dir) {
   return fs.existsSync(refs) ? fs.readdirSync(refs).filter((f) => f.endsWith('.md')).map((f) => path.join(refs, f)) : [];
 }
 
-test('skills folder exists or is empty before Task 2', () => {
-  expect(Array.isArray(skills)).toBe(true);
+test('all seven skills exist', () => {
+  expect([...skills].sort()).toEqual(['sf-apex', 'sf-architecture', 'sf-deploy', 'sf-flow', 'sf-review', 'sf-security', 'sf-testing']);
 });

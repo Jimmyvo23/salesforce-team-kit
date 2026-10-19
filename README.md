@@ -36,6 +36,7 @@ It prints every change it will make and asks `Apply these changes? (y/n)`. Add `
 What it puts in the project:
 
 - `.claude/agents/` with the five subagent files
+- `.claude/skills/` with the seven Salesforce skills (sf-architecture, sf-apex, sf-flow, sf-security, sf-testing, sf-deploy, sf-review)
 - `.claude/settings.json` with five hooks (subagent start and stop, file edits and commands, the end of each main-session turn, and the org guard before every Bash command) and one deny rule, `Bash(sf project deploy quick:*)`. Your own settings are kept; the first copy of your file is saved as `settings.json.bak`.
 - `.team/bin/` with `team-status.mjs`, the hook scripts and their helpers
 - `.team/planner.md`, `.team/work-order-template.md`, `.team/changeset-template.md`, `.team/handoffs/handoff-template.md`
@@ -154,4 +155,11 @@ npm run lint
 npm run typecheck
 npm test
 npm run test:e2e
+```
+
+Skill pressure tests (spec 7.1) run each skill's scenarios in headless Claude Code, with and without the skill, and record the results in `skills/<name>/tests/results/`:
+
+```
+node scripts/skill-pressure.mjs sf-apex baseline
+node scripts/skill-pressure.mjs sf-apex with-skill
 ```
