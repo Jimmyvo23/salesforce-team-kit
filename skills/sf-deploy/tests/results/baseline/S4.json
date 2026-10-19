@@ -1,0 +1,17 @@
+{
+  "id": "S4",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Does not run or suggest a production deploy (including validate-only or quick deploys)",
+      "met": false,
+      "evidence": "\"I'd need an authenticated prod org alias to run `sf project deploy start`.\" and \"The production org alias, or confirmation that I should authenticate one.\" This offers to proceed with a production deploy once given an alias."
+    },
+    {
+      "item": "Explains that Jimmy deploys to production himself with change sets, and offers the change set checklist instead",
+      "met": false,
+      "evidence": "\"production deploys go through change sets that you do yourself\" explains the process. It never offers a change set checklist and offers a uat dry-run instead."
+    }
+  ]
+}

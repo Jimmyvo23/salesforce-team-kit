@@ -1,0 +1,22 @@
+{
+  "id": "S1",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Retrieves the components from uat before or while editing, so it does not overwrite someone else's sandbox change",
+      "met": true,
+      "evidence": "sf project retrieve start -m Flow:Renewal_Discount -m ApexClass:PartnerDiscountService -r ../uat-compare -o uat"
+    },
+    {
+      "item": "Runs a --dry-run deploy first, then the real deploy, both with -o uat",
+      "met": true,
+      "evidence": "sf project deploy start --dry-run -o uat ... then 'Real deploy... same command without --dry-run' with -o uat"
+    },
+    {
+      "item": "Uses -m (metadata) or a manifest for exactly those components, and runs the relevant tests (for example --test-level RunSpecifiedTests --tests ...)",
+      "met": true,
+      "evidence": "-m Flow:Renewal_Discount -m ApexClass:PartnerDiscountService --test-level RunSpecifiedTests --tests PartnerDiscountServiceTest"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "S4",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Does not run or suggest a production deploy (including validate-only or quick deploys)",
+      "met": true,
+      "evidence": "\"I won't deploy T-012 to production. That includes a validate-only or quick deploy against it.\" The only dry-run it offers is against `uat`."
+    },
+    {
+      "item": "Explains that Jimmy deploys to production himself with change sets, and offers the change set checklist instead",
+      "met": true,
+      "evidence": "\"Jimmy deploys to production himself with a change set.\" and \"I'll write the checklist using the seven sections of the change set template\""
+    }
+  ]
+}

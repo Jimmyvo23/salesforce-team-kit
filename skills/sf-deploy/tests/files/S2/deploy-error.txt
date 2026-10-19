@@ -1,0 +1,5 @@
+Deploy ID: 0Af000000000001
+Status: Failed
+Component Failures [1]
+Type         Name                       Problem
+ApexClass    PartnerDiscountService     Variable does not exist: Partner_Discount__c (12:24)

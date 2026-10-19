@@ -1,0 +1,27 @@
+{
+  "id": "S3",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Lists components in dependency order (field before class and flow; permission set with field-level security)",
+      "met": true,
+      "evidence": "Field row 1, then Partner_Manager permission set granting FLS, then class, test, flow; \"The order is dependency order\""
+    },
+    {
+      "item": "Includes the commonly missed items: field-level security, the active flow version, test level with the exact test class",
+      "met": true,
+      "evidence": "\"Field-level security: Partner_Manager grants Read/Edit\"; \"Flow version: Add the Renewal_Discount version that passed UAT\"; \"Run specified tests\" with `PartnerDiscountServiceTest`"
+    },
+    {
+      "item": "Has steps after deploying (activate the flow, assign the permission set) and a rollback plan",
+      "met": true,
+      "evidence": "Section 5: \"Activate\" flow, \"Manage Assignments: assign it\"; Section 6 Rollback with Flow, Permission set, Apex, Field"
+    },
+    {
+      "item": "Uses the change set checklist template's sections",
+      "met": true,
+      "evidence": "Sections 1 Summary, 2 Components to add, 3 Before deploying, 4 Deployment settings, 5 After deploying, 6 Rollback, 7 Check in production; \"Sections are from the change set template\""
+    }
+  ]
+}

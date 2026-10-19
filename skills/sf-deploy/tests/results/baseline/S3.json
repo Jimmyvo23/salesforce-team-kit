@@ -1,0 +1,27 @@
+{
+  "id": "S3",
+  "mode": "baseline",
+  "pass": false,
+  "items": [
+    {
+      "item": "Lists components in dependency order (field before class and flow; permission set with field-level security)",
+      "met": false,
+      "evidence": "Table lists field first, then class, test, flow, permission set, and notes the permission set needs the field permission. But it never states this is dependency order, and the permission set comes after the flow and class."
+    },
+    {
+      "item": "Includes the commonly missed items: field-level security, the active flow version, test level with the exact test class",
+      "met": true,
+      "evidence": "\"Confirm it includes the field permission for `Partner_Discount__c`\"; \"Confirm which version is active in `uat`\"; \"Run specified tests (`PartnerDiscountServiceTest`)\""
+    },
+    {
+      "item": "Has steps after deploying (activate the flow, assign the permission set) and a rollback plan",
+      "met": true,
+      "evidence": "\"Check in production that the flow is Active\"; \"Assign `Partner_Manager` to the intended users\"; \"## Rollback ... deactivate the flow, remove the permission set assignments\""
+    },
+    {
+      "item": "Uses the change set checklist template's sections",
+      "met": false,
+      "evidence": "No template is referenced. The sections (Components, Before uploading, Upload and deploy, After deploy, Rollback) appear to be the assistant's own."
+    }
+  ]
+}

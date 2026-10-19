@@ -1,0 +1,22 @@
+{
+  "id": "S2",
+  "mode": "with-skill",
+  "pass": true,
+  "items": [
+    {
+      "item": "Reads that the class references the field Partner_Discount__c, which is not in the deploy or not in the org",
+      "met": true,
+      "evidence": "`PartnerDiscountService` uses the field `Partner_Discount__c`, and that field isn't in uat. It also wasn't part of the deploy"
+    },
+    {
+      "item": "Fixes it by deploying the field with or before the class (dependency order), and checks field-level security",
+      "met": true,
+      "evidence": "\"Deploy the field in the same deploy as the class.\" and \"Add field-level security... Add `fieldPermissions` for it to the right permission set and deploy that permission set at the same time.\""
+    },
+    {
+      "item": "Re-runs a --dry-run before the real deploy",
+      "met": true,
+      "evidence": "sf project deploy start --dry-run -o uat ... \"# If the dry run passes, run the same command without --dry-run\""
+    }
+  ]
+}
