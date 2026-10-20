@@ -1,0 +1,22 @@
+{"time":"2026-10-05T09:40:00.000Z","source":"cli","type":"task","id":"T-100","title":"Data residency picklist","owner":"admin","state":"done"}
+{"time":"2026-10-05T09:41:00.000Z","source":"cli","type":"task","id":"T-101","title":"Renewal discount flow","owner":"admin","state":"in_progress"}
+{"time":"2026-10-05T09:41:00.000Z","source":"cli","type":"task","id":"T-102","title":"Quote line trigger fix","owner":"developer","state":"in_progress"}
+{"time":"2026-10-05T09:42:00.000Z","source":"cli","type":"task","id":"T-103","title":"UAT script for renewals","owner":"analyst","state":"todo"}
+{"time":"2026-10-05T09:42:00.000Z","source":"cli","type":"task","id":"T-104","title":"Account classification formula","owner":"admin","state":"in_review"}
+{"time":"2026-10-05T09:43:00.000Z","source":"cli","type":"task","id":"T-105","title":"Order sync Apex","owner":"developer","state":"todo"}
+{"time":"2026-10-05T09:44:00.000Z","source":"cli","type":"approval_requested","agent":"planner","id":"WO-7","summary":"Work Order for T-101: renewal discount flow","agents":["admin"],"task":"T-101"}
+{"time":"2026-10-05T09:45:00.000Z","source":"cli","type":"approval_decided","agent":"jimmy","id":"WO-7","state":"approved"}
+{"time":"2026-10-05T09:46:00.000Z","source":"cli","type":"approval_requested","agent":"planner","id":"WO-8","summary":"Work Order for T-102: quote line trigger fix","agents":["developer"],"task":"T-102"}
+{"time":"2026-10-05T09:47:00.000Z","source":"cli","type":"approval_decided","agent":"jimmy","id":"WO-8","state":"approved"}
+{"time":"2026-10-05T09:50:00.000Z","source":"cli","type":"release","agent":"planner","task":"T-100","components":4}
+{"time":"2026-10-05T09:52:00.000Z","source":"cli","type":"released","agent":"planner","task":"T-100","note":"Deployed by change set"}
+{"time":"2026-10-05T09:55:00.000Z","source":"cli","type":"release","agent":"planner","task":"T-104","components":3}
+{"time":"2026-10-05T10:00:00.000Z","source":"cli","type":"deploy","agent":"admin","org":"cleanup-sandbox","result":"passed","tests":"142/142","coverage":87,"task":"T-101"}
+{"time":"2026-10-05T10:02:00.000Z","source":"cli","type":"deploy","agent":"developer","org":"sandbox","result":"failed","tests":"140/141","coverage":81,"task":"T-102"}
+{"time":"2026-10-05T10:03:00.000Z","source":"cli","type":"handoff","from":"analyst","to":"qa","task":"T-103"}
+{"time":"2026-10-05T10:04:00.000Z","source":"cli","type":"approval_requested","agent":"planner","id":"WO-9","summary":"Work Order for T-105: order sync Apex","agents":["developer"],"task":"T-105"}
+{"time":"2026-10-05T10:06:00.000Z","source":"cli","type":"status","agent":"planner","status":"working","task":"T-105","progress":40,"nextStep":"Answer Jimmy on WO-9"}
+{"time":"2026-10-05T10:07:00.000Z","source":"cli","type":"status","agent":"analyst","status":"working","task":"T-103","progress":50,"nextStep":"Write the renewal UAT steps"}
+{"time":"2026-10-05T10:08:00.000Z","source":"cli","type":"status","agent":"admin","status":"working","task":"T-101","progress":60,"nextStep":"Hand the flow to QA"}
+{"time":"2026-10-05T10:08:30.000Z","source":"cli","type":"status","agent":"developer","status":"blocked","task":"T-102","reason":"1 Apex test failing"}
+{"time":"2026-10-05T10:09:40.000Z","source":"hook","type":"guard_blocked","agent":"developer","command":"sf project deploy start -o prod","reason":"prod is not a sandbox alias"}

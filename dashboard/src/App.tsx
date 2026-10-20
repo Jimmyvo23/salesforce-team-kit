@@ -1,75 +1,42 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import { useTeamState } from './api';
-import type { AgentState, Handoff, TeamState } from './types';
+import type { AgentState, Deploy, Handoff, Release, TeamState } from './types';
 import { agentName, needsYouTitle } from './labels';
-import { Building } from './components/Building';
 import { Clipboard } from './components/Clipboard';
+import { IsoOffice, pct } from './components/IsoOffice';
 import { Lobby } from './components/Lobby';
 import { ListView } from './components/ListView';
-import { MailTube, type Flight } from './components/MailTube';
+import { Flights } from './components/Flights';
 import { NeedsYouSign } from './components/NeedsYouSign';
 import { StatusOverlay } from './components/StatusOverlay';
-import { ThemeToggle } from './components/ThemeToggle';
-
-/** How long the receiver's plaque reads "New from <sender>". */
-export const NEWS_MS = 4000;
+import { MoodPicker } from './components/MoodPicker';
+import { SkyOverlays, SkyScene } from './components/SkyCards';
+import { FLIGHT_MS, useFresh, useReducedMotion } from './fresh';
+import { project } from './iso';
+import type { Mood } from './mood';
+import { useMood } from './useMood';
 
 /** Below this width the page opens in list view. */
 const NARROW = '(max-width: 479px)';
 
-const handoffKey = (h: Handoff) => `${h.from}|${h.to}|${h.task}|${h.time}`;
-
-/**
- * Handoffs that were not in the first successful poll. Each one sends a folder down the
- * mail tube once and puts "New from <sender>" on the receiver's plaque for NEWS_MS.
- */
-function useArrivals(state: TeamState | null): Flight[] {
-  const seen = useRef<Set<string> | null>(null);
-  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
-  const [arrivals, setArrivals] = useState<Flight[]>([]);
-
-  useEffect(() => {
-    if (!state) return;
-    if (seen.current === null) {
-      seen.current = new Set(state.handoffs.map(handoffKey));
-      return;
-    }
-    const known = seen.current;
-    const fresh = state.handoffs.filter((h) => !known.has(handoffKey(h)));
-    if (fresh.length === 0) return;
-    const flights = fresh.map((h) => ({ key: handoffKey(h), from: h.from, to: h.to }));
-    for (const f of flights) {
-      known.add(f.key);
-      const timer = setTimeout(() => {
-        timers.current.delete(timer);
-        setArrivals((list) => list.filter((x) => x.key !== f.key));
-      }, NEWS_MS);
-      timers.current.add(timer);
-    }
-    setArrivals((list) => [...list, ...flights]);
-  }, [state]);
-
-  useEffect(() => {
-    const pending = timers.current;
-    return () => {
-      pending.forEach(clearTimeout);
-      pending.clear();
-    };
-  }, []);
-  return arrivals;
-}
+const hKey = (h: Handoff) => `${h.from}|${h.to}|${h.task}|${h.time}`;
+const dKey = (d: Deploy) => `${d.org}|${d.time}`;
+const rKey = (r: Release) => `${r.task}|${r.state}`;
 
 export function App() {
   const { state, error, offline } = useTeamState();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [listView, setListView] = useState(() => window.matchMedia(NARROW).matches);
-  const arrivals = useArrivals(state);
+  const handoffs = useFresh(state?.handoffs, hKey, FLIGHT_MS);
+  const deploys = useFresh(state?.deploys, dKey, FLIGHT_MS);
+  const released = useFresh(state?.releases, rKey, FLIGHT_MS).filter((r) => r.state === 'released');
+  const { choice, setChoice, mood } = useMood();
 
   const approver = state?.agents.find((a) => a.isApprover) ?? null;
   const needsTitle = state && approver && state.needsYou.length > 0
     ? needsYouTitle(approver.name, state.needsYou.length) : '';
 
-  // One tree for every state, so the toolbar (and its theme) never remounts.
+  // One tree for every state, so the toolbar (and its mood picker) never remounts.
   return (
     <main className="scene">
       {state && (
@@ -79,7 +46,7 @@ export function App() {
         </>
       )}
       <div className="toolbar">
-        <ThemeToggle />
+        <MoodPicker choice={choice} setChoice={setChoice} />
         <button type="button" className="view-toggle" onClick={() => setListView((v) => !v)}>
           {listView ? 'Office view' : 'List view'}
         </button>
@@ -89,7 +56,7 @@ export function App() {
       {state ? (
         <div className="scene-body" inert={Boolean(error) || offline}>
           {listView ? <ListView state={state} /> : (
-            <Office state={state} approver={approver} arrivals={arrivals} selectedId={selectedId} setSelectedId={setSelectedId} />
+            <Office state={state} mood={mood} approver={approver} handoffs={handoffs} deploys={deploys} released={released} selectedId={selectedId} setSelectedId={setSelectedId} />
           )}
         </div>
       ) : !error && !offline && <p className="scene-opening">Opening the office</p>}
@@ -100,44 +67,57 @@ export function App() {
 
 interface OfficeProps {
   state: TeamState;
+  mood: Mood;
   approver: AgentState | null;
-  arrivals: Flight[];
+  handoffs: Handoff[];
+  deploys: Deploy[];
+  released: Release[];
   selectedId: string | null;
   setSelectedId: Dispatch<SetStateAction<string | null>>;
 }
 
-/** The building with its sign, tube and lobby, and the clipboard beside it. */
-function Office({ state, approver, arrivals, selectedId, setSelectedId }: OfficeProps) {
-  const pending = state.approvals.filter((a) => a.state === 'pending');
+/** The isometric office with its sign and lobby, and the clipboard beside it. */
+function Office({ state, mood, approver, handoffs, deploys, released, selectedId, setSelectedId }: OfficeProps) {
   const selected = state.agents.find((a) => a.id === selectedId) ?? null;
+  const still = useReducedMotion();
   const plaques: Record<string, string> = {};
-  for (const a of arrivals) plaques[a.to] = `New from ${agentName(state.agents, a.from)}`;
+  for (const h of handoffs) plaques[h.to] = `New from ${agentName(state.agents, h.from)}`;
 
   return (
     <div className="office">
-      <Building
-        project={state.project}
-        agents={state.agents}
-        selectedId={selected?.id ?? null}
-        pendingApprovals={pending.length}
-        onSelect={(id) => setSelectedId((cur) => (cur === id ? null : id))}
-        plaques={plaques}
-        sign={approver && (
-          <NeedsYouSign
-            approver={approver}
-            items={state.needsYou}
-            agents={state.agents}
-            onOpen={() => setSelectedId(approver.id)}
-          />
-        )}
-        ceiling={<MailTube flight={arrivals.at(-1) ?? null} />}
-        lobby={<Lobby tasks={state.tasks} agents={state.agents} />}
-      />
+      <div className="office-main">
+        <IsoOffice
+          state={state}
+          mood={mood}
+          selectedId={selected?.id ?? null}
+          onSelect={(id) => setSelectedId((cur) => (cur === id ? null : id))}
+          plaques={plaques}
+          scene={(l) => (
+            <>
+              <SkyScene l={l} state={state} mood={mood} />
+              <Flights l={l} agents={state.agents} handoffs={still ? [] : handoffs} deploys={still ? [] : deploys} released={still ? [] : released} />
+            </>
+          )}
+          overlays={(l) => (
+            <>
+              {approver && (
+                <div className="iso-sign" style={pct(l, [l.width - 2, project(l, 9.6, l.approver.y0 + 0.4, 2.6)[1] - 14])}>
+                  <NeedsYouSign approver={approver} items={state.needsYou} agents={state.agents} onOpen={() => setSelectedId(approver.id)} />
+                </div>
+              )}
+              <SkyOverlays l={l} state={state} />
+            </>
+          )}
+        />
+        <Lobby tasks={state.tasks} agents={state.agents} />
+      </div>
       <Clipboard
         agent={selected}
         events={selected ? state.agentLogs[selected.id] ?? [] : []}
         needsYou={state.needsYou}
         agents={state.agents}
+        tasks={state.tasks}
+        deploys={state.deploys}
         now={state.updatedAt}
       />
     </div>

@@ -31,6 +31,7 @@ export interface Approval {
   decidedAt: string | null;
   note: string;
   agents: string[];
+  task: string | null;
 }
 
 export interface Task {
@@ -39,6 +40,33 @@ export interface Task {
   owner: string;
   state: TaskState;
   notes: string;
+  progress: number;
+  stage: string;
+}
+
+export interface Deploy {
+  org: string;
+  agent: string;
+  result: 'passed' | 'failed';
+  tests: string | null;
+  coverage: number | null;
+  task: string | null;
+  time: string;
+}
+
+export interface Release {
+  task: string;
+  state: 'ready' | 'released';
+  components: number;
+  file: string | null;
+  time: string;
+}
+
+export interface GuardBlock {
+  agent: string;
+  command: string;
+  reason: string;
+  time: string;
 }
 
 export interface LogEntry {
@@ -71,6 +99,11 @@ export interface TeamState {
   agents: AgentState[];
   approvals: Approval[];
   tasks: Task[];
+  /** Latest deploy per org. */
+  deploys: Deploy[];
+  releases: Release[];
+  /** Last 10 guard blocks, oldest first. */
+  guardBlocks: GuardBlock[];
   log: LogEntry[];
   /** Keyed by agent id; at most 20 entries each, oldest first. */
   agentLogs: Record<string, AgentLogEntry[]>;

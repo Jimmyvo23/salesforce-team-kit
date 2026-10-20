@@ -1,0 +1,14 @@
+{
+  "project": "Nitro Cleanup",
+  "staleAfterMinutes": 5,
+  "orgs": { "sandbox": ["sandbox", "cleanup-sandbox"] },
+  "approver": { "id": "jimmy", "name": "Jimmy", "role": "Approves every Work Order and deploys to production", "color": "#ffb900" },
+  "members": [
+    { "id": "planner",   "name": "Architect", "role": "Designs the solution and runs the team", "color": "#6a5ae0" },
+    { "id": "analyst",   "name": "Analyst",   "role": "Stories, acceptance criteria, UAT",      "color": "#f2a33a" },
+    { "id": "admin",     "name": "Admin",     "role": "Flows, objects, permissions",            "color": "#12a37c" },
+    { "id": "developer", "name": "Developer", "role": "Apex, LWC, integrations",                "color": "#2f86e8" },
+    { "id": "qa",        "name": "QA",        "role": "Tests and verifies in the sandbox",      "color": "#e0559a" },
+    { "id": "reviewer",  "name": "Reviewer",  "role": "Final check before release",             "color": "#6b7a90" }
+  ]
+}

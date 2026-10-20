@@ -63,11 +63,11 @@ test.describe('needs-you sign', () => {
     await expect(details(page)).toContainText('Work Order for T-007 to T-009: booking form and chat');
     await expect(details(page)).toContainText('Reviewer is stuck');
     await expect(details(page)).toContainText('Checks failing');
-    await expect(page.getByRole('button', { name: /^Jimmy:/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-agent="jimmy"]')).toHaveAttribute('aria-pressed', 'true');
   });
 });
 
-test.describe('lobby task board', () => {
+test.describe('lobby task board, caps (busy)', () => {
   test('has four columns with counts and caps each at 3 tickets', async ({ page }) => {
     await open(page, 'busy');
     const board = page.getByRole('region', { name: 'Task board' });
@@ -101,48 +101,69 @@ test.describe('lobby task board', () => {
     await expect(page.locator(':focus')).toHaveText('and 2 more');
     await expect(page.locator(':focus')).toHaveAttribute('aria-expanded', 'false');
   });
+});
 
-  test('a ticket shows id, title, owner and progress when in progress', async ({ page }) => {
-    await open(page, 'busy');
-    const inProgress = page.getByRole('region', { name: 'Task board' }).getByRole('list', { name: 'In progress' });
-    const ticket = inProgress.getByRole('listitem').first();
-    await expect(ticket).toContainText('T-004');
-    await expect(ticket).toContainText('Backend');
-    await expect(ticket).toContainText('40%');
+test.describe('lobby task board', () => {
+  test.beforeEach(async ({ page }) => { await open(page, 'sf-office'); });
+
+  test('has four columns with the sf-office counts', async ({ page }) => {
+    const board = page.getByRole('region', { name: 'Task board' });
+    await expect(board).toBeVisible();
+    for (const name of ['To do, 2 tasks', 'In progress, 2 tasks', 'In review, 1 task', 'Done, 1 task']) {
+      await expect(board.getByRole('heading', { name, exact: true })).toBeVisible();
+    }
+  });
+
+  test('a ticket shows its task progress bar and stage', async ({ page }) => {
+    const board = page.getByRole('region', { name: 'Task board' });
+    const bar = board.getByRole('progressbar', { name: /T-101/ });
+    await expect(bar).toHaveAttribute('aria-valuetext', '65%, In sandbox');
+    await expect(board.getByText('65% · In sandbox')).toBeVisible();
   });
 });
 
 test('a new handoff shows New from <sender> on the receiver plaque', async ({ page }) => {
-  await open(page, 'busy');
-  const tester = page.getByRole('button', { name: /^Tester:/ });
-  await expect(tester).toBeVisible();
-  // The handoff already in the first poll does not replay.
-  await expect(tester).not.toContainText('New from');
-  append({ type: 'handoff', from: 'backend', to: 'tester', task: 'T-004' });
-  await expect(tester).toContainText('New from Backend', { timeout: 4000 });
-  await expect(tester).not.toContainText('New from Backend', { timeout: 7000 });
+  await open(page, 'sf-office');
+  const qa = page.locator('[data-agent="qa"]');
+  await expect(qa).toBeVisible();
+  await expect(qa).not.toContainText('New from');
+  append({ type: 'handoff', from: 'admin', to: 'qa', task: 'T-101' });
+  await expect(qa).toContainText('New from Admin', { timeout: 4000 });
+  await expect(qa).not.toContainText('New from Admin', { timeout: 7000 });
 });
 
 test('a visitor hot desk appears only after an unknown agent is active', async ({ page }) => {
   await open(page, 'busy');
   const office$ = page.getByRole('region', { name: 'Office' });
-  await expect(office$.getByRole('button', { name: /^Planner:/ })).toBeVisible();
+  await expect(office$.getByRole('button', { name: /^Planner,/ })).toBeVisible();
   await expect(office$.getByText('Hot desk')).toHaveCount(0);
   append({ type: 'status', agent: 'security-bot', status: 'working', task: 'Audit' });
-  await expect(office$.getByRole('button', { name: /^security-bot:/ })).toBeVisible({ timeout: 4000 });
+  await expect(office$.getByRole('button', { name: /^security-bot,/ })).toBeVisible({ timeout: 4000 });
   await expect(office$.getByText('Hot desk')).toBeVisible();
 });
 
-test('theme choice survives a reload', async ({ page }) => {
+test('mood picker offers Auto plus four moods, Auto checked by default', async ({ page }) => {
   await open(page, 'busy');
-  const themes = page.getByRole('radiogroup', { name: 'Theme' });
-  await expect(themes.getByRole('radio', { name: 'Cozy day' })).toBeChecked();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'day');
-  await themes.getByRole('radio', { name: 'Night shift' }).check();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
+  const picker = page.getByRole('radiogroup', { name: 'Mood' });
+  await expect(picker.getByRole('radio')).toHaveCount(5);
+  await expect(picker.getByRole('radio', { name: 'Auto' })).toBeChecked();
+});
+
+test('pinned mood survives a reload and sets dark panels for Night shift', async ({ page }) => {
+  await open(page, 'busy');
+  await page.getByRole('radio', { name: 'Night shift' }).check();
   await page.reload();
-  await expect(page.getByRole('radiogroup', { name: 'Theme' }).getByRole('radio', { name: 'Night shift' })).toBeChecked();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
+  await expect(page.getByRole('radio', { name: 'Night shift' })).toBeChecked();
+  await expect(page.locator('html')).toHaveAttribute('data-dark', 'true');
+});
+
+test('Auto follows the clock: 12:00 is Mint morning, 22:00 is dark', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 9, 20, 12, 0));
+  await open(page, 'busy');
+  await expect(page.locator('html')).toHaveAttribute('data-dark', 'false');
+  await page.clock.setFixedTime(new Date(2026, 9, 20, 22, 0));
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-dark', 'true');
 });
 
 test('the office works when storage is blocked', async ({ page }) => {
@@ -150,38 +171,42 @@ test('the office works when storage is blocked', async ({ page }) => {
     Object.defineProperty(window, 'localStorage', { get() { throw new Error('blocked'); } });
   });
   await open(page, 'busy');
-  await page.getByRole('radio', { name: 'Pastel' }).check();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'pastel');
-  await expect(page.getByRole('button', { name: /^Backend:/ })).toBeVisible();
+  await page.getByRole('radio', { name: 'Sunrise' }).check();
+  await expect(page.locator('html')).toHaveAttribute('data-mood', 'sunrise');
+  await expect(page.getByRole('button', { name: /^Backend,/ })).toBeVisible();
 });
 
 test('reduced motion: nothing animates, including a handoff', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await open(page, 'busy');
-  const tester = page.getByRole('button', { name: /^Tester:/ });
-  await expect(tester).toBeVisible();
-  append({ type: 'handoff', from: 'backend', to: 'tester', task: 'T-004' });
-  await expect(tester).toContainText('New from Backend', { timeout: 4000 });
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  await open(page, 'sf-office');
+  const qa = page.locator('[data-agent="qa"]');
+  await expect(qa).toBeVisible();
+  append({ type: 'handoff', from: 'admin', to: 'qa', task: 'T-101' });
+  await expect(qa).toContainText('New from Admin', { timeout: 4000 });
+  await expect(page.getByTestId('flight-handoff')).toHaveCount(0);
+  expect(await page.evaluate(() =>
+    [...document.querySelectorAll('.iso-scene *')].reduce((n, el) => n + el.getAnimations().length, 0))).toBe(0);
 });
 
 test('with motion allowed the office does animate (control for the test above)', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await open(page, 'busy');
-  await expect(page.getByRole('button', { name: /^Backend:/ })).toBeVisible();
-  expect(await page.evaluate(() => document.getAnimations().length)).toBeGreaterThan(0);
+  await open(page, 'sf-office');
+  await expect(page.locator('[data-agent="admin"]')).toBeVisible();
+  expect(await page.evaluate(() =>
+    [...document.querySelectorAll('.iso-scene *')].reduce((n, el) => n + el.getAnimations().length, 0))).toBeGreaterThan(0);
 });
 
 test.describe('list view', () => {
+  test.beforeEach(async ({ page }) => { await open(page, 'sf-office'); });
+
   test('is the default on a 360 px screen', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
-    await open(page, 'busy');
+    await page.reload();
     const list = page.getByRole('region', { name: 'List view' });
     await expect(list).toBeVisible();
-    await expect(list).toContainText('Backend');
-    await expect(list).toContainText('Working, T-004');
-    await expect(list).toContainText('T-004');
-    await expect(list).toContainText('WO-3');
+    await expect(list).toContainText('Admin');
+    await expect(list).toContainText('Working, T-101');
+    await expect(list).toContainText('T-101');
     await expect(page.getByRole('region', { name: 'Office' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Office view' }).click();
     await expect(page.getByRole('region', { name: 'Office' })).toBeVisible();
@@ -189,7 +214,6 @@ test.describe('list view', () => {
   });
 
   test('desktop opens in the office and can switch to the list', async ({ page }) => {
-    await open(page, 'busy');
     await expect(page.getByRole('region', { name: 'Office' })).toBeVisible();
     await page.getByRole('button', { name: 'List view' }).click();
     await expect(page.getByRole('region', { name: 'List view' })).toContainText('Reviewer');
@@ -205,68 +229,60 @@ test('a broken team file explains the problem', async ({ page }) => {
   await expect(alert).toContainText('Fix .team/team.json and this page will reload.');
 });
 
-test('the theme survives the switch from the problem page to the office with storage blocked', async ({ page }) => {
+test('the mood survives the switch from the problem page to the office with storage blocked', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'localStorage', { get() { throw new Error('blocked'); } });
   });
   await open(page, 'bad-team');
   await expect(page.getByRole('heading', { name: 'The team file has a problem' })).toBeVisible();
-  await page.getByRole('radio', { name: 'Pastel' }).check();
+  await page.getByRole('radio', { name: 'Night shift' }).check();
   fs.copyFileSync(path.join('test', 'fixtures', 'projects', 'busy', '.team', 'team.json'),
     path.join(office!.projectDir, '.team', 'team.json'));
   await expect(page.getByRole('heading', { name: 'CookNeighbour team' })).toBeVisible({ timeout: 4000 });
-  await expect(page.getByRole('radio', { name: 'Pastel' })).toBeChecked();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'pastel');
+  await expect(page.getByRole('radio', { name: 'Night shift' })).toBeChecked();
+  await expect(page.locator('html')).toHaveAttribute('data-mood', 'night');
 });
 
 test('stopping the server shows the reconnecting overlay over the last state', async ({ page }) => {
   await open(page, 'busy');
-  await expect(page.getByRole('button', { name: /^Backend:/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Backend,/ })).toBeVisible();
   await office!.close();
   office = undefined;
   await expect(page.getByText('Paused. Reconnecting…')).toBeVisible({ timeout: 7000 });
   await expect(page.getByRole('heading', { name: 'CookNeighbour team' })).toBeAttached();
   // The toolbar stays usable above the overlay.
   await page.getByRole('radio', { name: 'Night shift' }).click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
+  await expect(page.locator('html')).toHaveAttribute('data-mood', 'night');
   await page.getByRole('button', { name: 'List view' }).click();
   await expect(page.getByRole('button', { name: 'Office view' })).toBeVisible();
 });
 
-test('re-activating a pinned room unpins it', async ({ page }) => {
+test('re-activating a pinned desk unpins it', async ({ page }) => {
   await open(page, 'busy');
-  const backend = page.getByRole('button', { name: /^Backend:/ });
+  const backend = page.getByRole('button', { name: /^Backend,/ });
   await backend.click();
   await expect(backend).toHaveAttribute('aria-pressed', 'true');
   await backend.click();
   await expect(backend).toHaveAttribute('aria-pressed', 'false');
-  await expect(details(page)).toContainText('Pick a room');
+  await expect(details(page)).toContainText('Pick a desk to pin what that person is doing here.');
 });
 
-test('focus order follows the layout: the approver comes right after the top row', async ({ page }) => {
-  await open(page, 'busy');
+test('focus order follows the team: members in order, the approver last', async ({ page }) => {
+  await open(page, 'sf-office');
   const names = await page.getByRole('region', { name: 'Office' }).locator('[data-agent]')
     .evaluateAll((els) => els.map((e) => e.getAttribute('data-agent')));
-  expect(names.slice(0, 3)).toEqual(['planner', 'backend', 'jimmy']);
+  expect(names).toEqual(['planner', 'analyst', 'admin', 'developer', 'qa', 'reviewer', 'jimmy']);
 });
 
-test('screenshots of the three themes', async ({ page }) => {
-  test.skip(!process.env.UPDATE_SCREENSHOT, 'set UPDATE_SCREENSHOT=1 to refresh docs/screenshots/office-*.png');
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await open(page, 'busy');
-  await sign(page).click();
-  await page.mouse.move(0, 0);
-  await page.evaluate(() => document.fonts.ready);
-  for (const [label, file] of [['Cozy day', 'day'], ['Night shift', 'night'], ['Pastel', 'pastel']]) {
-    await page.getByRole('radio', { name: label }).check();
-    await page.mouse.move(0, 0);
-    await page.screenshot({ path: path.join('docs', 'screenshots', `office-theme-${file}.png`), fullPage: true });
+test('screenshots of the four moods at fixed times', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await open(page, 'sf-office');
+  for (const [name, hour] of [['night', 2], ['sunrise', 8], ['mint', 12], ['twilight', 18]] as const) {
+    await page.clock.setFixedTime(new Date(2026, 9, 20, hour, 0));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(office!.url);
+    await expect(page.getByRole('region', { name: 'Office' })).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    await page.screenshot({ path: test.info().outputPath(`mood-${name}.png`), fullPage: true });
   }
-  await page.getByRole('radio', { name: 'Cozy day' }).check();
-  await page.setViewportSize({ width: 360, height: 740 });
-  await page.reload();
-  await expect(page.getByRole('region', { name: 'List view' })).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
-  await page.screenshot({ path: path.join('docs', 'screenshots', 'office-phone-list.png'), fullPage: true });
 });
