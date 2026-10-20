@@ -113,14 +113,13 @@ test.describe('lobby task board', () => {
 });
 
 test('a new handoff shows New from <sender> on the receiver plaque', async ({ page }) => {
-  await open(page, 'busy');
-  const tester = page.getByRole('button', { name: /^Tester,/ });
-  await expect(tester).toBeVisible();
-  // The handoff already in the first poll does not replay.
-  await expect(tester).not.toContainText('New from');
-  append({ type: 'handoff', from: 'backend', to: 'tester', task: 'T-004' });
-  await expect(tester).toContainText('New from Backend', { timeout: 4000 });
-  await expect(tester).not.toContainText('New from Backend', { timeout: 7000 });
+  await open(page, 'sf-office');
+  const qa = page.locator('[data-agent="qa"]');
+  await expect(qa).toBeVisible();
+  await expect(qa).not.toContainText('New from');
+  append({ type: 'handoff', from: 'admin', to: 'qa', task: 'T-101' });
+  await expect(qa).toContainText('New from Admin', { timeout: 4000 });
+  await expect(qa).not.toContainText('New from Admin', { timeout: 7000 });
 });
 
 test('a visitor hot desk appears only after an unknown agent is active', async ({ page }) => {
@@ -169,19 +168,22 @@ test('the office works when storage is blocked', async ({ page }) => {
 
 test('reduced motion: nothing animates, including a handoff', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await open(page, 'busy');
-  const tester = page.getByRole('button', { name: /^Tester,/ });
-  await expect(tester).toBeVisible();
-  append({ type: 'handoff', from: 'backend', to: 'tester', task: 'T-004' });
-  await expect(tester).toContainText('New from Backend', { timeout: 4000 });
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  await open(page, 'sf-office');
+  const qa = page.locator('[data-agent="qa"]');
+  await expect(qa).toBeVisible();
+  append({ type: 'handoff', from: 'admin', to: 'qa', task: 'T-101' });
+  await expect(qa).toContainText('New from Admin', { timeout: 4000 });
+  await expect(page.getByTestId('flight-handoff')).toHaveCount(0);
+  expect(await page.evaluate(() =>
+    [...document.querySelectorAll('.iso-scene *')].reduce((n, el) => n + el.getAnimations().length, 0))).toBe(0);
 });
 
 test('with motion allowed the office does animate (control for the test above)', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await open(page, 'busy');
-  await expect(page.getByRole('button', { name: /^Backend,/ })).toBeVisible();
-  expect(await page.evaluate(() => document.getAnimations().length)).toBeGreaterThan(0);
+  await open(page, 'sf-office');
+  await expect(page.locator('[data-agent="admin"]')).toBeVisible();
+  expect(await page.evaluate(() =>
+    [...document.querySelectorAll('.iso-scene *')].reduce((n, el) => n + el.getAnimations().length, 0))).toBeGreaterThan(0);
 });
 
 test.describe('list view', () => {

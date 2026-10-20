@@ -127,44 +127,6 @@ body {
 .needs-sign::after { right: 18px; }
 .needs-sign-summary { min-width: 0; font-size: 12px; font-weight: 600; }
 
-/* Mail tube along the ceiling; a folder rides it from sender to receiver */
-.mail-tube {
-  position: absolute;
-  top: 3px;
-  left: 6px;
-  right: 6px;
-  z-index: 3;
-  height: 12px;
-  pointer-events: none;
-  background: var(--tube-glass);
-  border: 2px solid var(--ink);
-  border-radius: 8px;
-}
-.mail-folder {
-  position: absolute;
-  top: -5px;
-  left: var(--to);
-  width: 22px;
-  height: 16px;
-  opacity: 0;
-  background: var(--approval);
-  border: 2px solid var(--ink);
-  border-radius: 3px;
-}
-.mail-folder::before {
-  content: '';
-  position: absolute;
-  top: -6px;
-  left: 2px;
-  width: 9px;
-  height: 5px;
-  background: var(--approval);
-  border: 2px solid var(--ink);
-  border-bottom: 0;
-  border-radius: 2px 2px 0 0;
-}
-
-
 /* State pills (preview card and clipboard). These are not rooms, so no dimming. */
 .state-pill {
   display: inline-block;
@@ -394,18 +356,10 @@ body {
 
   /* The sign sways when it appears or its count changes, then hangs still. */
   .needs-sign { animation: swing 1.6s ease-in-out 2; }
-  /* A handoff: the folder rides the tube once; the receiver's plaque pops. */
-  .mail-folder { animation: tube-send 2.8s ease-in-out; }
-
 }
 
 @keyframes drift { from { left: -120px; } to { left: 110%; } }
 @keyframes swing { 0%, 100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
-@keyframes tube-send {
-  0% { left: var(--from); opacity: 0; }
-  12% { left: var(--from); opacity: 1; }
-  80% { left: var(--to); opacity: 1; }
-  100% { left: var(--to); opacity: 0; }
 }
 
 /* Isometric office (spec 8.2). Scene colours come from the mood (inline fills); state colours from tokens. */
@@ -483,3 +437,16 @@ body {
   .float { animation: float 6s ease-in-out infinite alternate; }
 }
 @keyframes float { to { transform: translateY(-3px); } }
+
+/* Flights (spec 8.3): CSS motion paths, so reduced motion switches them off */
+.flight { offset-rotate: 0deg; offset-distance: 100%; opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .flight { animation: fly 1.6s ease-in-out forwards; }
+  .flight-handoff { filter: drop-shadow(0 0 2px var(--fly)); }
+}
+@keyframes fly {
+  0% { offset-distance: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}

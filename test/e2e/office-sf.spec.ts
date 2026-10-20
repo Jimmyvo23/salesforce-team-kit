@@ -1,9 +1,19 @@
+import path from 'node:path';
 import { test, expect } from '@playwright/test';
+import { appendEvent } from '../../lib/events.mjs';
+import { FIXTURE_NOW } from '../fixtures/projects/fixture-clock.mjs';
 import { startOffice, type Office } from './helpers';
 
 let office: Office;
 test.beforeEach(async () => { office = await startOffice('sf-office'); });
 test.afterEach(async () => { await office.close(); });
+
+/** Append an event to the running office's log, a second after fixture time. */
+function append(event: Record<string, unknown>) {
+  appendEvent(path.join(office.projectDir, '.team', 'events.jsonl'), {
+    source: 'cli', time: new Date(Date.parse(FIXTURE_NOW) + 1000).toISOString(), ...event,
+  });
+}
 
 test('Tasks card lists active tasks with progress and stage', async ({ page }) => {
   await page.goto(office.url);
@@ -34,4 +44,29 @@ test('a change set ready waits on the approver desk', async ({ page }) => {
 test('guard block bubble shows at the agent desk', async ({ page }) => {
   await page.goto(office.url);
   await expect(page.getByTestId('guard-bubble-developer')).toContainText('Guard blocked');
+});
+
+test('a new deploy flies a parcel to the sandbox cloud and updates it', async ({ page }) => {
+  await page.goto(office.url);
+  await expect(page.getByTestId('sandbox-cloud')).toContainText('✗ failed');
+  append({ type: 'deploy', agent: 'developer', org: 'sandbox', result: 'passed', tests: '141/141', coverage: 84, task: 'T-102' });
+  await expect(page.getByTestId('flight-deploy')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId('sandbox-cloud')).toContainText('✓ passed · 141/141 tests · 84%');
+});
+
+test('released moves the parcel into the vault', async ({ page }) => {
+  await page.goto(office.url);
+  await expect(page.getByTestId('vault-cloud')).toBeVisible(); // first poll done: later events are news
+  append({ type: 'released', agent: 'planner', task: 'T-104' });
+  await expect(page.getByTestId('flight-released')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId('changeset-parcel')).toHaveCount(0);
+  await expect(page.getByTestId('vault-cloud')).toContainText('T-104 released');
+});
+
+test('a handoff flies a folder and labels the receiver', async ({ page }) => {
+  await page.goto(office.url);
+  await expect(page.getByTestId('vault-cloud')).toBeVisible(); // first poll done: later events are news
+  append({ type: 'handoff', from: 'admin', to: 'qa', task: 'T-101' });
+  await expect(page.getByTestId('flight-handoff')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('[data-agent="qa"] .chip-task')).toHaveText('New from Admin');
 });
