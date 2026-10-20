@@ -63,7 +63,7 @@ test.describe('needs-you sign', () => {
     await expect(details(page)).toContainText('Work Order for T-007 to T-009: booking form and chat');
     await expect(details(page)).toContainText('Reviewer is stuck');
     await expect(details(page)).toContainText('Checks failing');
-    await expect(page.getByRole('button', { name: /^Jimmy:/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-agent="jimmy"]')).toHaveAttribute('aria-pressed', 'true');
   });
 });
 
@@ -114,7 +114,7 @@ test.describe('lobby task board', () => {
 
 test('a new handoff shows New from <sender> on the receiver plaque', async ({ page }) => {
   await open(page, 'busy');
-  const tester = page.getByRole('button', { name: /^Tester:/ });
+  const tester = page.getByRole('button', { name: /^Tester,/ });
   await expect(tester).toBeVisible();
   // The handoff already in the first poll does not replay.
   await expect(tester).not.toContainText('New from');
@@ -126,10 +126,10 @@ test('a new handoff shows New from <sender> on the receiver plaque', async ({ pa
 test('a visitor hot desk appears only after an unknown agent is active', async ({ page }) => {
   await open(page, 'busy');
   const office$ = page.getByRole('region', { name: 'Office' });
-  await expect(office$.getByRole('button', { name: /^Planner:/ })).toBeVisible();
+  await expect(office$.getByRole('button', { name: /^Planner,/ })).toBeVisible();
   await expect(office$.getByText('Hot desk')).toHaveCount(0);
   append({ type: 'status', agent: 'security-bot', status: 'working', task: 'Audit' });
-  await expect(office$.getByRole('button', { name: /^security-bot:/ })).toBeVisible({ timeout: 4000 });
+  await expect(office$.getByRole('button', { name: /^security-bot,/ })).toBeVisible({ timeout: 4000 });
   await expect(office$.getByText('Hot desk')).toBeVisible();
 });
 
@@ -164,13 +164,13 @@ test('the office works when storage is blocked', async ({ page }) => {
   await open(page, 'busy');
   await page.getByRole('radio', { name: 'Sunrise' }).check();
   await expect(page.locator('html')).toHaveAttribute('data-mood', 'sunrise');
-  await expect(page.getByRole('button', { name: /^Backend:/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Backend,/ })).toBeVisible();
 });
 
 test('reduced motion: nothing animates, including a handoff', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page, 'busy');
-  const tester = page.getByRole('button', { name: /^Tester:/ });
+  const tester = page.getByRole('button', { name: /^Tester,/ });
   await expect(tester).toBeVisible();
   append({ type: 'handoff', from: 'backend', to: 'tester', task: 'T-004' });
   await expect(tester).toContainText('New from Backend', { timeout: 4000 });
@@ -180,7 +180,7 @@ test('reduced motion: nothing animates, including a handoff', async ({ page }) =
 test('with motion allowed the office does animate (control for the test above)', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await open(page, 'busy');
-  await expect(page.getByRole('button', { name: /^Backend:/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Backend,/ })).toBeVisible();
   expect(await page.evaluate(() => document.getAnimations().length)).toBeGreaterThan(0);
 });
 
@@ -233,7 +233,7 @@ test('the mood survives the switch from the problem page to the office with stor
 
 test('stopping the server shows the reconnecting overlay over the last state', async ({ page }) => {
   await open(page, 'busy');
-  await expect(page.getByRole('button', { name: /^Backend:/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Backend,/ })).toBeVisible();
   await office!.close();
   office = undefined;
   await expect(page.getByText('Paused. Reconnecting…')).toBeVisible({ timeout: 7000 });
@@ -245,9 +245,9 @@ test('stopping the server shows the reconnecting overlay over the last state', a
   await expect(page.getByRole('button', { name: 'Office view' })).toBeVisible();
 });
 
-test('re-activating a pinned room unpins it', async ({ page }) => {
+test('re-activating a pinned desk unpins it', async ({ page }) => {
   await open(page, 'busy');
-  const backend = page.getByRole('button', { name: /^Backend:/ });
+  const backend = page.getByRole('button', { name: /^Backend,/ });
   await backend.click();
   await expect(backend).toHaveAttribute('aria-pressed', 'true');
   await backend.click();
@@ -255,9 +255,9 @@ test('re-activating a pinned room unpins it', async ({ page }) => {
   await expect(details(page)).toContainText('Pick a room');
 });
 
-test('focus order follows the layout: the approver comes right after the top row', async ({ page }) => {
-  await open(page, 'busy');
+test('focus order follows the team: members in order, the approver last', async ({ page }) => {
+  await open(page, 'sf-office');
   const names = await page.getByRole('region', { name: 'Office' }).locator('[data-agent]')
     .evaluateAll((els) => els.map((e) => e.getAttribute('data-agent')));
-  expect(names.slice(0, 3)).toEqual(['planner', 'backend', 'jimmy']);
+  expect(names).toEqual(['planner', 'analyst', 'admin', 'developer', 'qa', 'reviewer', 'jimmy']);
 });

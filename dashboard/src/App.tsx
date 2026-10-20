@@ -2,14 +2,16 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 import { useTeamState } from './api';
 import type { AgentState, Handoff, TeamState } from './types';
 import { agentName, needsYouTitle } from './labels';
-import { Building } from './components/Building';
 import { Clipboard } from './components/Clipboard';
+import { IsoOffice, pct } from './components/IsoOffice';
 import { Lobby } from './components/Lobby';
 import { ListView } from './components/ListView';
-import { MailTube, type Flight } from './components/MailTube';
+import type { Flight } from './components/MailTube';
 import { NeedsYouSign } from './components/NeedsYouSign';
 import { StatusOverlay } from './components/StatusOverlay';
 import { MoodPicker } from './components/MoodPicker';
+import { project } from './iso';
+import type { Mood } from './mood';
 import { useMood } from './useMood';
 
 /** How long the receiver's plaque reads "New from <sender>". */
@@ -65,8 +67,7 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [listView, setListView] = useState(() => window.matchMedia(NARROW).matches);
   const arrivals = useArrivals(state);
-  // Task 5 passes `mood` down to the office.
-  const { choice, setChoice } = useMood();
+  const { choice, setChoice, mood } = useMood();
 
   const approver = state?.agents.find((a) => a.isApprover) ?? null;
   const needsTitle = state && approver && state.needsYou.length > 0
@@ -92,7 +93,7 @@ export function App() {
       {state ? (
         <div className="scene-body" inert={Boolean(error) || offline}>
           {listView ? <ListView state={state} /> : (
-            <Office state={state} approver={approver} arrivals={arrivals} selectedId={selectedId} setSelectedId={setSelectedId} />
+            <Office state={state} mood={mood} approver={approver} arrivals={arrivals} selectedId={selectedId} setSelectedId={setSelectedId} />
           )}
         </div>
       ) : !error && !offline && <p className="scene-opening">Opening the office</p>}
@@ -103,39 +104,36 @@ export function App() {
 
 interface OfficeProps {
   state: TeamState;
+  mood: Mood;
   approver: AgentState | null;
   arrivals: Flight[];
   selectedId: string | null;
   setSelectedId: Dispatch<SetStateAction<string | null>>;
 }
 
-/** The building with its sign, tube and lobby, and the clipboard beside it. */
-function Office({ state, approver, arrivals, selectedId, setSelectedId }: OfficeProps) {
-  const pending = state.approvals.filter((a) => a.state === 'pending');
+/** The isometric office with its sign and lobby, and the clipboard beside it. */
+function Office({ state, mood, approver, arrivals, selectedId, setSelectedId }: OfficeProps) {
   const selected = state.agents.find((a) => a.id === selectedId) ?? null;
   const plaques: Record<string, string> = {};
   for (const a of arrivals) plaques[a.to] = `New from ${agentName(state.agents, a.from)}`;
 
   return (
     <div className="office">
-      <Building
-        project={state.project}
-        agents={state.agents}
-        selectedId={selected?.id ?? null}
-        pendingApprovals={pending.length}
-        onSelect={(id) => setSelectedId((cur) => (cur === id ? null : id))}
-        plaques={plaques}
-        sign={approver && (
-          <NeedsYouSign
-            approver={approver}
-            items={state.needsYou}
-            agents={state.agents}
-            onOpen={() => setSelectedId(approver.id)}
-          />
-        )}
-        ceiling={<MailTube flight={arrivals.at(-1) ?? null} />}
-        lobby={<Lobby tasks={state.tasks} agents={state.agents} />}
-      />
+      <div className="office-main">
+        <IsoOffice
+          state={state}
+          mood={mood}
+          selectedId={selected?.id ?? null}
+          onSelect={(id) => setSelectedId((cur) => (cur === id ? null : id))}
+          plaques={plaques}
+          overlays={(l) => approver && (
+            <div className="iso-sign" style={pct(l, project(l, 9.6, l.approver.y0 + 0.4, 2.6))}>
+              <NeedsYouSign approver={approver} items={state.needsYou} agents={state.agents} onOpen={() => setSelectedId(approver.id)} />
+            </div>
+          )}
+        />
+        <Lobby tasks={state.tasks} agents={state.agents} />
+      </div>
       <Clipboard
         agent={selected}
         events={selected ? state.agentLogs[selected.id] ?? [] : []}

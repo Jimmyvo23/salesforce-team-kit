@@ -11,10 +11,10 @@ export const STATE_LABELS: Record<AgentStatus, string> = {
 
 export const NOTHING_ASSIGNED = 'Nothing assigned';
 
-/** Accessible name of a room: "<name>: <label>, <currentTask>". */
-export function roomLabel(agent: AgentState): string {
-  const task = agent.currentTask ?? NOTHING_ASSIGNED.toLowerCase();
-  return `${agent.name}: ${STATE_LABELS[agent.status]}, ${task}`;
+/** Accessible name of a desk: "<name>, <state>: <why or task>". */
+export function deskLabel(agent: Pick<AgentState, 'name' | 'status' | 'currentTask' | 'reason'>): string {
+  const detail = (agent.status === 'blocked' && agent.reason) || agent.currentTask || NOTHING_ASSIGNED.toLowerCase();
+  return `${agent.name}, ${STATE_LABELS[agent.status].toLowerCase()}: ${detail}`;
 }
 
 /** Milliseconds from `from` to `to` (ISO strings), never negative. */

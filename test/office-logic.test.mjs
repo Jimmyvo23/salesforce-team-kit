@@ -1,32 +1,10 @@
 import { test, expect } from 'vitest';
-import { orderRooms } from '../dashboard/src/rooms.ts';
-import { needsYouLine, needsYouTitle } from '../dashboard/src/labels.ts';
+import { deskLabel, needsYouLine, needsYouTitle } from '../dashboard/src/labels.ts';
+import { deskState } from '../dashboard/src/office-data.ts';
 
 const agent = (id, extra = {}) => ({ id, name: id[0].toUpperCase() + id.slice(1), isApprover: false, ...extra });
 const team = ['planner', 'backend', 'frontend', 'tester', 'reviewer'].map((id) => agent(id));
 const jimmy = agent('jimmy', { isApprover: true });
-const ids = (list) => list.map((a) => a.id);
-
-test('orderRooms puts the approver at the end of the top row (3 columns)', () => {
-  expect(ids(orderRooms([...team, jimmy], 3))).toEqual(['planner', 'backend', 'jimmy', 'frontend', 'tester', 'reviewer']);
-});
-
-test('orderRooms with 2 columns', () => {
-  expect(ids(orderRooms([...team, jimmy], 2))).toEqual(['planner', 'jimmy', 'backend', 'frontend', 'tester', 'reviewer']);
-});
-
-test('orderRooms keeps visitors after the team', () => {
-  const visitor = agent('bot', { isVisitor: true });
-  expect(ids(orderRooms([...team, jimmy, visitor], 3)).slice(-2)).toEqual(['reviewer', 'bot']);
-});
-
-test('orderRooms with fewer members than columns puts the approver last', () => {
-  expect(ids(orderRooms([team[0], jimmy], 3))).toEqual(['planner', 'jimmy']);
-});
-
-test('orderRooms without an approver returns the input order', () => {
-  expect(ids(orderRooms(team, 3))).toEqual(ids(team));
-});
 
 test('needsYouTitle: plural, singular and zero', () => {
   expect(needsYouTitle('Jimmy', 2)).toBe('Jimmy, 2 things need you');
@@ -46,4 +24,17 @@ test('needsYouLine for each kind', () => {
 
 test('needsYouLine falls back to the id for an unknown agent', () => {
   expect(needsYouLine({ kind: 'blocked', id: 'ghost', summary: 'x' }, team).title).toBe('ghost is stuck');
+});
+
+const a = (extra) => ({ id: 'developer', name: 'Developer', status: 'idle', currentTask: null, reason: null, ...extra });
+
+test('deskLabel: stuck desks say why', () => {
+  expect(deskLabel(a({ status: 'blocked', currentTask: 'T-102', reason: '1 Apex test failing' }))).toBe('Developer, stuck: 1 Apex test failing');
+});
+test('deskLabel: working desks name the task; free desks say nothing assigned', () => {
+  expect(deskLabel(a({ status: 'working', currentTask: 'T-102' }))).toBe('Developer, working: T-102');
+  expect(deskLabel(a({}))).toBe('Developer, on a break: nothing assigned');
+});
+test('deskState maps every agent status', () => {
+  expect(['working', 'blocked', 'awaiting_approval', 'done', 'idle'].map(deskState)).toEqual(['working', 'blocked', 'waiting', 'done', 'free']);
 });
