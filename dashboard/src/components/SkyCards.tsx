@@ -1,6 +1,6 @@
 import type { TeamState } from '../types';
 import { project, type IsoLayout } from '../iso';
-import type { Mood } from '../mood';
+import { skyCaption, type Mood } from '../mood';
 import { Puff, pct } from './IsoOffice';
 import { ProgressBar } from './ProgressBar';
 import { activeTasks, deployLine, guardBubbles, lastReleased, latestDeploy, readyReleases } from '../office-data';
@@ -15,32 +15,29 @@ export function SkyScene({ l, state, mood: m }: { l: IsoLayout; state: TeamState
   const released = lastReleased(state.releases);
   const ready = readyReleases(state.releases);
   const [sx, sy] = l.sandbox, [vx, vy] = l.vault;
-  const text = m.dark >= 0.5 ? '#ffffff' : m.ink;
-  // Cloud captions use the full ink on light clouds: the palette's softer sub colour is under 4.5:1 on the vault fill.
-  const sub = m.dark >= 0.5 ? '#c9cfee' : m.ink;
-  // Failed-deploy text: dark red on light clouds, light red on the night cloud (both above 4.5:1).
-  const bad = m.dark >= 0.5 ? '#ffb4ae' : '#b3261e';
+  // Caption colours are picked against each cloud's own fill, which blends with the clock (AA at every minute).
+  const sb = skyCaption(m, m.cloud), vt = skyCaption(m, m.vault);
   const [px, py] = project(l, l.approver.desk.x + 0.6, l.approver.desk.y, 0.9);
   return (
     <>
       <g className="float" data-testid="sandbox-cloud">
-        <Puff x={sx} y={sy} s={1.7} fill={m.cloud} />
-        <text x={sx} y={sy - 9} textAnchor="middle" className="sky-title" fill={text}>
+        <Puff x={sx} y={sy} s={1.7} fill={sb.fill} />
+        <text x={sx} y={sy - 9} textAnchor="middle" className="sky-title" fill={sb.text}>
           <tspan x={sx}>Sandbox </tspan>
-          {dep && dep.org.toLowerCase() !== 'sandbox' && <tspan x={sx} dy={8} className="sky-sub" fill={sub}>{`· ${clip(dep.org, 18)}`}</tspan>}
+          {dep && dep.org.toLowerCase() !== 'sandbox' && <tspan x={sx} dy={8} className="sky-sub">{`· ${clip(dep.org, 18)}`}</tspan>}
         </text>
-        <text x={sx} y={sy + 8} textAnchor="middle" className="sky-sub" fill={dep?.result === 'failed' ? bad : sub}>
+        <text x={sx} y={sy + 8} textAnchor="middle" className="sky-sub" fill={dep?.result === 'failed' ? sb.bad : sb.text}>
           {dep ? deployLine(dep) : 'No deploys yet'}
         </text>
         {dep && <title>{`Sandbox · ${dep.org}`}</title>}
       </g>
       <g data-testid="vault-cloud">
-        <Puff x={vx - 10} y={vy} s={1.9} fill={m.vault} />
-        <text x={vx - 10} y={vy - 8} textAnchor="middle" className="sky-sub" fill={text}>
+        <Puff x={vx - 10} y={vy} s={1.9} fill={vt.fill} />
+        <text x={vx - 10} y={vy - 8} textAnchor="middle" className="sky-sub" fill={vt.text}>
           <tspan x={vx - 10} className="sky-title">Production</tspan>
-          <tspan fill={sub}>{` · deployed by ${approver?.name ?? 'the approver'} `}</tspan>
-          <tspan x={vx - 10} dy={8} fill={sub}>via change set </tspan>
-          {released && <tspan x={vx - 10} dy={8} fill={sub}>{`${released.task} released`}</tspan>}
+          <tspan>{` · deployed by ${approver?.name ?? 'the approver'} `}</tspan>
+          <tspan x={vx - 10} dy={8}>via change set </tspan>
+          {released && <tspan x={vx - 10} dy={8}>{`${released.task} released`}</tspan>}
         </text>
       </g>
       {ready.length > 0 && (

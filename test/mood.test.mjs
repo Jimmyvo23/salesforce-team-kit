@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest';
-import { moodAt, moodFor, blendHex, oklch, PALETTES, MOODS, moodTokens } from '../dashboard/src/mood.ts';
+import { moodAt, moodFor, blendHex, oklch, PALETTES, MOODS, moodTokens, skyCaption } from '../dashboard/src/mood.ts';
 
 const at = (h, m = 0) => new Date(2026, 9, 20, h, m);
 
@@ -67,4 +67,46 @@ test('moodTokens: night gives dark panels with light text, mint gives light pane
   expect(oklch(night['--ink'])[0]).toBeGreaterThan(0.85);
   expect(oklch(mint['--paper'])[0]).toBeGreaterThan(0.9);
   expect(Object.keys(mint).sort()).toEqual(['--accent', '--ink', '--ink-soft', '--lobby', '--paper', '--sky', '--sky-2'].sort());
+});
+
+const luminance = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+  .map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+  .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+const contrast = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+test('chrome text keeps WCAG AA (4.5:1) at every minute of the day, blends included', () => {
+  const failures = [];
+  for (let min = 0; min < 24 * 60; min++) {
+    const t = moodTokens(moodAt(at(Math.floor(min / 60), min % 60)));
+    for (const [fg, bg] of [['--ink', '--paper'], ['--ink-soft', '--paper'], ['--ink', '--lobby'], ['--paper', '--ink']]) {
+      const c = contrast(t[fg], t[bg]);
+      if (c < 4.5) failures.push(`${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')} ${fg} on ${bg} ${c.toFixed(2)}`);
+    }
+  }
+  expect(failures).toEqual([]);
+});
+
+test('sky captions (sandbox cloud, production vault) keep 4.5:1 on their cloud at every minute', () => {
+  const failures = [];
+  for (let min = 0; min < 24 * 60; min++) {
+    const m = moodAt(at(Math.floor(min / 60), min % 60));
+    for (const base of [m.cloud, m.vault]) {
+      const { fill, ...ink } = skyCaption(m, base);
+      for (const k of ['text', 'bad']) {
+        const c = contrast(ink[k], fill);
+        if (c < 4.5) failures.push(`${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')} ${k} on ${fill} ${c.toFixed(2)}`);
+      }
+    }
+  }
+  expect(failures).toEqual([]);
+});
+
+test('sky captions leave the cloud fills of the four pinned moods untouched', () => {
+  for (const m of Object.values(PALETTES)) {
+    expect(skyCaption(m, m.cloud).fill).toBe(m.cloud);
+    expect(skyCaption(m, m.vault).fill).toBe(m.vault);
+  }
 });

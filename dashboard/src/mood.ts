@@ -123,16 +123,59 @@ export function moodFor(choice: MoodChoice, date: Date): Mood {
   return choice === 'auto' ? moodAt(date) : PALETTES[choice];
 }
 
+/** The colour with its OKLCH lightness held inside [lo, hi]; hue and chroma kept. */
+function clampL(hex: string, lo: number, hi: number): string {
+  const [L, C, H] = oklch(hex);
+  const l = Math.min(hi, Math.max(lo, L));
+  if (l === L) return hex;
+  const h = (H * Math.PI) / 180;
+  return labHex([l, C * Math.cos(h), C * Math.sin(h)]);
+}
+
+/**
+ * Chrome surfaces stay on the same side as the ink. Ink snaps at the blend midpoint, so a panel
+ * blending through mid-grey would drop text below 4.5:1 (around 05:30–06:30 and 20:00–20:30):
+ * dark panels never get lighter than night's walls, light ones never darker than these.
+ */
+const DARK_PANEL_MAX_L = oklch(PALETTES.night.wallA)[0];
+const LIGHT_LOBBY_MIN_L = 0.9;
+
 /** CSS custom properties for the page chrome (toolbar, clipboard, board, list view). */
 export function moodTokens(m: Mood): Record<string, string> {
   const dark = m.dark >= 0.5;
   return {
     '--sky': m.sky[0],
     '--sky-2': m.sky[1],
-    '--paper': dark ? m.wallB : '#ffffff',
-    '--lobby': m.wallA,
+    '--paper': dark ? clampL(m.wallB, 0, DARK_PANEL_MAX_L) : '#ffffff',
+    '--lobby': dark ? clampL(m.wallA, 0, DARK_PANEL_MAX_L) : clampL(m.wallA, LIGHT_LOBBY_MIN_L, 1),
     '--ink': dark ? '#eef1ff' : m.ink,
     '--ink-soft': dark ? '#c9cfee' : m.sub,
     '--accent': m.accent,
   };
+}
+
+/** WCAG 2 contrast ratio of two #rrggbb colours (1–21). */
+export function contrastRatio(a: string, b: string): number {
+  const lum = (h: string) => { const [r, g, bl] = hexRgb(h).map(toLin); return 0.2126 * r + 0.7152 * g + 0.0722 * bl; };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const CAPTION_DARK = { text: '#1d2340', bad: '#a3211a' };
+const CAPTION_LIGHT = { text: '#ffffff', bad: '#ffc9c4' };
+
+/**
+ * Fill and caption colours for a sky cloud that carries text (sandbox cloud, production vault).
+ * The fills blend with the clock and pass through mid-tones (around 05:30 and 20:15) where neither
+ * dark nor light text reaches 4.5:1; there the fill is lifted just enough for the dark ink. The side
+ * is then picked by measured contrast, using the mood's own ink when it reads.
+ */
+export function skyCaption(m: Mood, base: string): { fill: string; text: string; bad: string } {
+  let fill = base;
+  const reads = (f: string) => Math.max(contrastRatio(CAPTION_DARK.text, f), contrastRatio(CAPTION_LIGHT.text, f)) >= 4.5;
+  for (let L = oklch(base)[0]; !reads(fill) && L < 1; L += 0.01) fill = clampL(base, L, 1);
+  const side = contrastRatio(CAPTION_DARK.text, fill) >= contrastRatio(CAPTION_LIGHT.text, fill) ? CAPTION_DARK : CAPTION_LIGHT;
+  const text = side === CAPTION_DARK && contrastRatio(m.ink, fill) >= 4.5 ? m.ink : side.text;
+  // Where no red reads on the fill, the "✗ failed" words carry the state.
+  return { fill, text, bad: contrastRatio(side.bad, fill) >= 4.5 ? side.bad : text };
 }

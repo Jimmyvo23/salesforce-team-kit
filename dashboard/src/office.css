@@ -47,15 +47,15 @@ body {
   background: var(--paper);
   border: 2px solid var(--ink);
   border-radius: 20px;
-  font: 600 13px/1 var(--font);
+  font: 600 var(--text-sm)/1 var(--font);
   color: var(--ink);
 }
 .mood-picker { display: flex; padding: 2px; }
-.mood-picker label { position: relative; padding: 5px 10px; border-radius: 16px; cursor: pointer; }
+.mood-picker label { position: relative; padding: 6px 10px; border-radius: 16px; cursor: pointer; }
 .mood-picker label.is-on { background: var(--ink); color: var(--paper); }
 .mood-picker input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
 .mood-picker label:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }
-.view-toggle { padding: 7px 14px; cursor: pointer; }
+.view-toggle { padding: 8px 14px; cursor: pointer; }
 .view-toggle:focus-visible, .needs-sign:focus-visible, .lobby-more:focus-visible {
   outline: 3px solid var(--ink);
   outline-offset: 3px;
@@ -105,13 +105,13 @@ body {
   align-items: baseline;
   max-width: min(100%, 560px);
   margin: 12px 4% 0 0;
-  padding: 4px 12px;
+  padding: 0.3em 0.85em;
   background: var(--approval);
   border: 3px solid var(--ink-fixed);
   border-radius: 10px;
   /* The sign is always yellow, so its text is fixed dark rather than following the mood's ink. */
   color: var(--ink-fixed);
-  font: 800 14px/1.3 var(--font);
+  font: 800 1em/1.3 var(--font);
   text-align: left;
   cursor: pointer;
   transform-origin: top center;
@@ -126,15 +126,17 @@ body {
 }
 .needs-sign::before { left: 18px; }
 .needs-sign::after { right: 18px; }
-.needs-sign-summary { min-width: 0; font-size: 12px; font-weight: 600; }
+.needs-sign-summary { min-width: 0; font-size: 0.86em; font-weight: 600; }
 
 /* State pills (preview card and clipboard). These are not rooms, so no dimming. */
 .state-pill {
   display: inline-block;
   padding: 2px 10px;
-  border: 2px solid var(--ink);
+  border: 2px solid var(--ink-fixed);
   border-radius: 20px;
-  font-size: 13px;
+  /* Pills keep their light tints in every mood, so their text is the fixed dark ink. */
+  color: var(--ink-fixed);
+  font-size: var(--text-sm);
   font-weight: 800;
 }
 .state-pill.state-working { background: var(--pill-working); }
@@ -173,7 +175,7 @@ body {
 }
 .preview-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; }
 .preview-head strong { font-size: 16px; font-weight: 800; }
-.preview-head .state-pill { font-size: 12px; padding: 0 8px; }
+.preview-head .state-pill { padding: 0 8px; }
 .preview-task { margin-top: 6px; }
 .preview-progress { display: flex; gap: 8px; align-items: center; margin-top: 6px; font-weight: 600; }
 
@@ -181,14 +183,15 @@ body {
 .clipboard {
   position: relative;
   align-self: start;
-  margin-top: 54px;
-  padding: 28px 16px 16px;
+  /* Top edge level with the scene: the title row is 32px plus its 8px margin. */
+  margin-top: 40px;
+  padding: 28px 18px 18px;
   background: var(--paper);
   border: 3px solid var(--ink);
   border-radius: 10px;
   box-shadow: var(--hard-shadow);
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: var(--text-md);
+  line-height: 1.45;
 }
 .clipboard::before {
   content: '';
@@ -202,9 +205,9 @@ body {
   border: 3px solid var(--ink);
   border-radius: 6px;
 }
-.clipboard-empty { margin: 0; font-size: 15px; }
-.clipboard-name { margin: 0; font-size: 26px; font-weight: 800; line-height: 1.1; }
-.clipboard-role { margin: 2px 0 10px; font-size: 13px; }
+.clipboard-empty { margin: 0; font-size: var(--text-md); }
+.clipboard-name { margin: 0; font-size: var(--text-xl); font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
+.clipboard-role { margin: 4px 0 10px; color: var(--ink-soft); font-size: var(--text-sm); }
 .clipboard-stale {
   margin: 10px 0 0;
   padding: 4px 8px;
@@ -213,18 +216,21 @@ body {
   border-radius: 4px;
   font-weight: 600;
 }
-.clipboard-facts { margin: 12px 0 0; }
-.clipboard-facts dt { margin-top: 10px; font-size: 12px; font-weight: 800; }
-.clipboard-facts dd { margin: 0; }
-.clipboard-note { display: block; margin-top: 4px; font-size: 12px; font-weight: 600; }
+.clipboard-facts { margin: 14px 0 0; }
+.clipboard-facts dt { margin-top: 12px; font-size: var(--text-sm); font-weight: 800; }
+.clipboard-facts dt:first-child { margin-top: 0; }
+.clipboard-facts dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.clipboard-note { display: block; margin-top: 4px; color: var(--ink-soft); font-size: var(--text-sm); font-weight: 600; }
 .clipboard-approvals { margin: 2px 0 0; padding-left: 18px; }
 .clipboard-approvals li { margin-bottom: 4px; }
-.clipboard-history { margin-top: 14px; padding-top: 8px; border-top: 2px dashed var(--ink); font-size: 12px; }
-.clipboard-history h3 { margin: 0 0 4px; font-size: 12px; font-weight: 800; }
-.clipboard-history ol { margin: 0; padding: 0; list-style: none; line-height: 1.7; }
-.clipboard-history time { margin-right: 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.clipboard-history { margin-top: 16px; padding-top: 10px; border-top: 2px dashed var(--ink); font-size: var(--text-sm); }
+.clipboard-history h3 { margin: 0 0 6px; font-size: var(--text-sm); font-weight: 800; }
+.clipboard-history ol { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; line-height: 1.4; }
+/* Time in its own column, so a wrapped line stays under its text, not under the time. */
+.clipboard-history li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
+.clipboard-history time { font-weight: 600; font-variant-numeric: tabular-nums; }
 .clipboard-quiet { margin: 0; }
-.clipboard-updated { margin: 6px 0 0; opacity: 0.75; }
+.clipboard-updated { margin: 8px 0 0; color: var(--ink-soft); }
 
 /* Lobby: the ground floor, with the task board on its wall */
 .lobby {
@@ -248,8 +254,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 0 0 6px;
-  font-size: 13px;
+  margin: 0 0 8px;
+  font-size: var(--text-sm);
   font-weight: 800;
 }
 .lobby-count {
@@ -257,28 +263,32 @@ body {
   background: var(--paper);
   border: 2px solid var(--ink);
   border-radius: 10px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .lobby-column ul { margin: 0; padding: 0; list-style: none; }
 .ticket {
   margin-bottom: 6px;
-  padding: 4px 7px;
+  padding: 5px 8px 6px;
   background: var(--paper);
   border: 2px solid var(--ink);
   border-left: 8px solid var(--owner);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
-.ticket-owner { display: block; font-size: 11px; opacity: 0.75; }
+.ticket-owner { display: block; margin-bottom: 2px; color: var(--ink-soft); font-size: var(--text-xs); }
+/* On a ticket the stage sits under the bar, so every ticket reads the same way at any width. */
+.ticket .task-bar { display: grid; gap: 2px; }
+.ticket .task-bar-text { white-space: normal; }
 .lobby-more {
   padding: 2px 0;
   background: none;
   border: 0;
   color: var(--ink);
-  font: 700 12px var(--font);
+  font: 600 var(--text-sm) var(--font);
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
@@ -289,7 +299,8 @@ body {
   height: 22px;
   padding-left: 10px;
   background: var(--wood);
-  font-size: 13px;
+  color: var(--wood-ink);
+  font-size: var(--text-sm);
   font-weight: 800;
   line-height: 22px;
 }
@@ -308,10 +319,12 @@ body {
   font-size: 15px;
   line-height: 1.5;
 }
-.list-view h1 { margin: 0; font-size: 24px; font-weight: 800; }
-.list-view h2 { margin: 18px 0 4px; font-size: 17px; font-weight: 800; }
-.list-view h3 { margin: 8px 0 2px; font-size: 14px; font-weight: 800; }
+.list-view h1 { margin: 0; font-size: var(--text-xl); font-weight: 800; line-height: 1.15; }
+.list-view h2 { margin: 22px 0 6px; font-size: var(--text-lg); font-weight: 800; line-height: 1.25; }
+.list-view h3 { margin: 10px 0 2px; color: var(--ink-soft); font-size: var(--text-md); font-weight: 800; }
 .list-view ul { margin: 0; padding-left: 20px; }
+.list-view li + li { margin-top: 2px; }
+.list-view li::marker { color: var(--ink-soft); }
 .list-view p { margin: 0; }
 
 /* Overlay when the server cannot give a fresh state; the last state shows through */
@@ -339,12 +352,14 @@ body {
 .status-card p { margin: 0 0 6px; overflow-wrap: anywhere; }
 .status-hint { font-weight: 600; }
 
-/* Phones: clipboard under the office */
-@media (max-width: 760px) {
+/* Below 1024px the clipboard moves under the office, so the scene keeps its width. */
+@media (max-width: 1023px) {
   .office { grid-template-columns: minmax(0, 1fr); }
   .clipboard { margin-top: 8px; }
+}
+/* Phones: two board columns */
+@media (max-width: 760px) {
   .lobby-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .needs-sign { margin-right: 0; }
 }
 
 /*
@@ -364,12 +379,13 @@ body {
 
 /* Isometric office (spec 8.2). Scene colours come from the mood (inline fills); state colours from tokens. */
 .iso-office { flex: 0 0 auto; min-width: 0; }
-.iso-title { display: inline-block; margin: 0 0 8px; padding: 2px 12px; border-radius: 12px; background: var(--paper); font-size: 1.25rem; color: var(--ink); }
-.iso-wrap { position: relative; }
+.iso-title { display: inline-block; margin: 0 0 8px; padding: 2px 12px; border-radius: 12px; background: var(--paper); color: var(--ink); font: 800 20px/28px var(--font); }
+.iso-wrap { position: relative; container-type: inline-size; }
 .iso-scene { display: block; width: 100%; height: auto; border-radius: 18px; }
 .iso-preview { position: absolute; transform: translate(-50%, -100%); z-index: 2; }
 /* The sign hangs from the right edge of the scene, in the open sky beside the approver office. */
-.iso-sign { position: absolute; transform: translate(-100%, -100%); z-index: 2; width: max-content; max-width: 210px; }
+/* HTML overlays scale with the scene (cqi = 1% of its width): 830px wide at 1280, 14px sign text. */
+.iso-sign { position: absolute; transform: translate(-100%, -100%); z-index: 2; width: max-content; max-width: 25cqi; font-size: clamp(10px, 1.7cqi, 15px); }
 .iso-sign .needs-sign { margin: 0; max-width: 100%; }
 /* Overlays must not swallow clicks meant for the desks behind them; only the sign itself is clickable. */
 .iso-preview, .iso-sign { pointer-events: none; }
@@ -377,30 +393,33 @@ body {
 .office-main { display: flex; flex-direction: column; gap: 16px; flex: 1 1 640px; min-width: 0; }
 
 .desk { cursor: pointer; outline: none; }
-.desk:focus-visible .chip rect, .desk.is-selected .chip rect { stroke: var(--ink); stroke-width: 1.4; stroke-opacity: 1; }
+.desk.is-selected .chip rect { stroke: var(--ink-fixed); stroke-width: 1.4; stroke-opacity: 1; }
+/* Keyboard focus reads stronger than a pin: a thicker ring plus the desk's floor glow. */
+.desk:focus-visible .chip rect { stroke: var(--ink-fixed); stroke-width: 2; stroke-opacity: 1; }
+.desk:focus-visible .desk-glow { stroke: var(--ink); stroke-width: 1.2; stroke-dasharray: 3 2; opacity: 1; fill-opacity: 0.22; }
 .desk-hit { fill: transparent; }
 .desk-glow { fill: var(--owner); opacity: 0; }
 .desk.is-working .desk-glow { opacity: 0.22; }
 .desk.is-blocked .desk-glow { fill: var(--alert); opacity: 0.3; }
 .desk.is-waiting .desk-glow { fill: var(--approval); opacity: 0.3; }
-.desk-screen { fill: var(--screen-free, #3a4060); }
+.desk-screen { fill: var(--screen-free); }
 .desk.is-working .desk-screen { fill: var(--owner); }
 .desk.is-blocked .desk-screen { fill: var(--alert); }
 .desk.is-waiting .desk-screen { fill: var(--approval); }
 .desk.is-done .desk-screen { fill: var(--done); }
-.desk-screen-mark text { font-size: 5px; font-weight: 700; fill: #fff; }
-.mark-code rect, .mark-saver { fill: #fff; opacity: 0.85; }
-.hot-desk { font-size: 5px; font-weight: 700; fill: var(--ink); pointer-events: none; }
+.desk-screen-mark text { font-size: 5px; font-weight: 800; fill: var(--on-screen); }
+.mark-code rect, .mark-saver { fill: var(--on-screen); opacity: 0.85; }
+.hot-desk { font-size: 5px; font-weight: 800; fill: var(--ink); pointer-events: none; }
 .chip { pointer-events: none; }
-.chip rect { fill: #fff; stroke: #1d2340; stroke-opacity: 0.15; stroke-width: 0.7; }
-.chip-name { font-size: 6px; font-weight: 700; fill: #1d2340; }
-.chip-task { font-size: 5px; fill: #4a5070; }
-.chip-dot.dot-working { fill: #2e9d57; }
+.chip rect { fill: var(--label); stroke: var(--ink-fixed); stroke-opacity: 0.15; stroke-width: 0.7; }
+.chip-name { font-size: 6px; font-weight: 800; fill: var(--ink-fixed); }
+.chip-task { font-size: 5px; fill: var(--label-sub); }
+.chip-dot.dot-working { fill: var(--dot-working); }
 .chip-dot.dot-blocked { fill: var(--alert); }
 .chip-dot.dot-waiting { fill: var(--approval); }
 .chip-dot.dot-done { fill: var(--done); }
-.chip-dot.dot-free { fill: #a0a8b5; }
-.glass-wall { fill: #ffe58a44; stroke: #e5b800; stroke-width: 1; }
+.chip-dot.dot-free { fill: var(--dot-free); }
+.glass-wall { fill: var(--glass); stroke: var(--glass-edge); stroke-width: 1; }
 
 @media (prefers-reduced-motion: no-preference) {
   .desk.is-working .desk-glow { animation: glow 2.4s ease-in-out infinite; }
@@ -422,23 +441,31 @@ body {
 @keyframes puff-drift { from { transform: translateX(-60px); } to { transform: translateX(420px); } }
 
 /* Sky cards (Tasks card, clouds, parcel, guard bubbles) */
-.sky-title { font-size: 6.5px; font-weight: 700; }
+.sky-title { font-size: 6.5px; font-weight: 800; }
 .sky-sub { font-size: 5.5px; }
-.parcel { fill: var(--approval); stroke: #2a2f45; stroke-width: 0.7; }
-.parcel-pill { fill: #fff; stroke: var(--ink-fixed); stroke-opacity: 0.3; stroke-width: 0.6; }
+.parcel { fill: var(--approval); stroke: var(--parcel-edge); stroke-width: 0.7; }
+.parcel-pill { fill: var(--label); stroke: var(--ink-fixed); stroke-opacity: 0.3; stroke-width: 0.6; }
 .parcel-text { fill: var(--ink-fixed); }
-.parcel-tape { stroke: #2a2f45; stroke-width: 0.6; }
-.tasks-card { position: absolute; top: 2%; left: 2%; width: min(30%, 230px); padding: 6px 9px; border-radius: 16px;
-  background: var(--paper); color: var(--ink); box-shadow: 0 4px 14px rgb(0 0 0 / 0.12); font-size: 0.7rem; line-height: 1.25; z-index: 1; }
-.tasks-card h2 { margin: 0 0 2px; font-size: 0.78rem; }
-.tasks-card ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.parcel-tape { stroke: var(--parcel-edge); stroke-width: 0.6; }
+.folder { stroke: var(--parcel-edge); stroke-width: 0.6; }
+.tasks-card { position: absolute; top: 2%; left: 2%; width: clamp(150px, 28cqi, 250px); padding: 0.5em 0.8em 0.6em; border-radius: 16px;
+  background: var(--paper); color: var(--ink); box-shadow: 0 4px 14px rgb(0 0 0 / 0.12); font-size: clamp(9px, 1.35cqi, 12px); line-height: 1.25; z-index: 1; }
+.tasks-card h2 { margin: 0 0 0.15em; font-size: 1.15em; font-weight: 800; }
+.tasks-card p { margin: 0; }
+.tasks-card ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.15em; }
 .tasks-card .meter { height: 8px; border-width: 1.5px; }
 .tasks-card-name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .task-bar { display: flex; align-items: center; gap: 6px; }
 .task-bar .meter { flex: 1; margin-top: 0; }
-.task-bar-text { white-space: nowrap; color: var(--ink-soft); font-size: 0.65rem; }
-.guard-bubble { position: absolute; transform: translate(-50%, -100%); padding: 3px 8px; border-radius: 10px;
-  background: var(--alert); color: #fff; font-size: 0.7rem; font-weight: 700; white-space: nowrap; z-index: 2; pointer-events: none; }
+.task-bar-text { white-space: nowrap; color: var(--ink-soft); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.tasks-card .task-bar-text { font-size: 0.9em; }
+.guard-bubble { position: absolute; transform: translate(-50%, -100%); padding: 0.25em 0.7em; border-radius: 10px;
+  background: var(--alert-strong); color: var(--on-alert); font-size: clamp(10px, 1.4cqi, 12px); font-weight: 800; white-space: nowrap; z-index: 2; pointer-events: none; }
+/* A phone-sized scene has no room for the Tasks card over the desks; the board below lists the same tasks. */
+@container (max-width: 560px) {
+  .tasks-card { display: none; }
+  .iso-sign { max-width: 42cqi; }
+}
 @media (prefers-reduced-motion: no-preference) {
   .float { animation: float 6s ease-in-out infinite alternate; }
 }

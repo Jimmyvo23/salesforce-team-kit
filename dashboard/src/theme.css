@@ -19,6 +19,19 @@
   --grass-2: #cfe8b4;
   --cloud: #ffffff;
   --clip-metal: #9aa0a6;
+  --wood-ink: #1d2340; /* the "Lobby" floor label on the wood strip */
+
+  /* Illustration details that sit on fixed fills in every mood (chips, parcels, monitors) */
+  --label: #ffffff;
+  --label-sub: #4a5070;
+  --parcel-edge: #2a2f45;
+  --screen-free: #3a4060;
+  --on-screen: #ffffff;
+  --on-alert: #ffffff;
+  --dot-working: #2e9d57;
+  --dot-free: #a0a8b5;
+  --glass: #ffe58a44;
+  --glass-edge: #e5b800;
 
   /* State pills and plaques (tinted so ink text stays readable) */
   --pill-working: #c8f2dc;
@@ -27,6 +40,7 @@
   --pill-waiting: var(--approval);
   --pill-done: #c8f2dc;
   --done: #3fae6a;
+  --alert-strong: #c4342b; /* alert as a text background: white on it is 5.4:1 (--alert is 3.3:1) */
 
   /* Surfaces */
   --lobby: #e9f4f1;
@@ -36,8 +50,13 @@
   --meter-track: #ffffff;
   --hard-shadow: 4px 5px 0 var(--ink);
 
-  /* Type */
+  /* Type: one scale for the chrome. Only 400, 600 and 800 are loaded. */
   --font: 'Bricolage Grotesque', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --text-xs: 11px;  /* meta under a bar: percentage and stage */
+  --text-sm: 12px;  /* labels, counts, timestamps, owners */
+  --text-md: 14px;  /* body on panels */
+  --text-lg: 17px;  /* section headings */
+  --text-xl: 26px;  /* the pinned name, the page title */
 
   color-scheme: light;
 }
@@ -45,7 +64,8 @@
 /* Dark mood: scene and shadow tokens. Sky, paper, lobby and ink come from moodTokens. */
 :root[data-dark='true'] {
   --frame: #1d4a4d;
-  --wood: #9c6a3c;
+  --wood: #7d522d;
+  --wood-ink: #ffffff;
   --grass-2: #1f3529;
   --cloud: #4b5287;
   --overlay: rgba(10, 12, 30, 0.55);
