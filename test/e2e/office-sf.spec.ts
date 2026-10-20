@@ -41,6 +41,15 @@ test('a change set ready waits on the approver desk', async ({ page }) => {
   await expect(page.getByTestId('changeset-parcel')).toContainText('Change set ready · 3 components');
 });
 
+test('approver desk keeps waiting while a stuck agent still needs him', async ({ page }) => {
+  await page.goto(office.url);
+  const desk = page.locator('[data-agent="jimmy"]');
+  await expect(desk).toHaveClass(/is-waiting/);
+  append({ type: 'approval_decided', id: 'WO-9', state: 'approved' });
+  await expect(desk).toHaveClass(/is-waiting/);
+  await expect(desk).toHaveAccessibleName('Jimmy, waiting for approval: 1 thing needs you');
+});
+
 test('guard block bubble shows at the agent desk', async ({ page }) => {
   await page.goto(office.url);
   await expect(page.getByTestId('guard-bubble-developer')).toContainText('Guard blocked');

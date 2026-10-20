@@ -71,6 +71,17 @@ test('approver awaiting while an approval is pending, idle after decision', () =
   expect(s2.approvals[0].decidedAt).not.toBeNull();
 });
 
+test('approver waits whenever anything needs him', () => {
+  const blocked = ev('status', { agent: 'reviewer', status: 'blocked', reason: 'Checks failing' });
+  const esc = ev('escalation', { task: 'T-1', summary: 'Failed twice' });
+  const req = ev('approval_requested', { id: 'WO-1', summary: 'Plan' });
+  expect(agent(build([blocked]), 'jimmy')).toMatchObject({ status: 'awaiting_approval', currentTask: '1 thing needs you' });
+  expect(agent(build([esc]), 'jimmy')).toMatchObject({ status: 'awaiting_approval', currentTask: '1 thing needs you' });
+  expect(agent(build([blocked, esc]), 'jimmy')).toMatchObject({ status: 'awaiting_approval', currentTask: '2 things need you' });
+  expect(agent(build([req, blocked]), 'jimmy')).toMatchObject({ status: 'awaiting_approval', currentTask: '1 decision waiting' });
+  expect(agent(build([]), 'jimmy')).toMatchObject({ status: 'idle', currentTask: null });
+});
+
 test('approval puts listed non-working agents in awaiting_approval', () => {
   const req = ev('approval_requested', { id: 'WO-1', summary: 'S', agents: ['Backend', 'frontend'] });
   const s = build([ev('agent_start', { agent: 'frontend' }), req]);
