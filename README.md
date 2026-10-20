@@ -14,6 +14,15 @@ The kit adds:
 
 The design is in `docs/superpowers/specs/`.
 
+## Getting started
+
+A step-by-step guide with tables and examples is in [docs/getting-started.docx](docs/getting-started.docx) (download it to open in Word). In short:
+
+1. **Install once:** `node install.mjs --target "<your SFDX project>"`. Say yes to `git init` if offered, pick your sandbox aliases in setup, and set `orgSkill` in `.team/team.json`.
+2. **Open the live office:** `npm run office -- --project "<your SFDX project>"` (add `--port 4318` if 4317 is busy).
+3. **Plan:** open the project in a new Claude Code session (the Architect) and brief one flow, for example: *"New task T-001: consolidate the <flow> flow. Have the Analyst write the story, run the automation inventory, write the design, and send me the Work Order. Don't build until I approve."* You get `docs/stories/T-001.md`, `docs/design/T-001.md` and the Work Order.
+4. **Approve and build:** reply "Approve WO-1" (or "with changes: …" / "Reject WO-1: …"). The team builds in the sandbox, QA and the Reviewer check it, and the Architect writes `docs/release/T-001-changeset.md`. You deploy the change set to production yourself, then tell the Architect it is released.
+
 ## Prerequisites
 
 - Node 20 or newer, and Git
