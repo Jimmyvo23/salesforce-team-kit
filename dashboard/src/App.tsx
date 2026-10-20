@@ -16,9 +16,6 @@ import { project } from './iso';
 import type { Mood } from './mood';
 import { useMood } from './useMood';
 
-/** How long the receiver's plaque reads "New from <sender>". */
-export const NEWS_MS = FLIGHT_MS;
-
 /** Below this width the page opens in list view. */
 const NARROW = '(max-width: 479px)';
 
@@ -104,7 +101,7 @@ function Office({ state, mood, approver, handoffs, deploys, released, selectedId
           overlays={(l) => (
             <>
               {approver && (
-                <div className="iso-sign" style={pct(l, [l.width - 6, project(l, 9.6, l.approver.y0 + 0.4, 2.6)[1] - 14])}>
+                <div className="iso-sign" style={pct(l, [l.width - 2, project(l, 9.6, l.approver.y0 + 0.4, 2.6)[1] - 14])}>
                   <NeedsYouSign approver={approver} items={state.needsYou} agents={state.agents} onOpen={() => setSelectedId(approver.id)} />
                 </div>
               )}

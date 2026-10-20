@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import type { AgentLogEntry, AgentState, Deploy, NeedsYouItem, Task } from '../types';
 import { lastDeployBy, deployLine } from '../office-data';
 import { ProgressBar } from './ProgressBar';
@@ -21,23 +20,20 @@ export interface ClipboardProps {
   deploys: Deploy[];
   /** Server clock (state.updatedAt); every relative time is measured against it. */
   now: string;
-  /** Extra content under the details (Task 14: everything that needs Jimmy). */
-  children?: ReactNode;
 }
 
 /** The clipboard on the right: details of the pinned agent. */
-export function Clipboard({ agent, events, needsYou, agents, tasks, deploys, now, children }: ClipboardProps) {
+export function Clipboard({ agent, events, needsYou, agents, tasks, deploys, now }: ClipboardProps) {
   return (
     <aside className="clipboard" aria-label="Details">
       {agent ? <AgentDetails agent={agent} events={events} needsYou={needsYou} agents={agents} tasks={tasks} deploys={deploys} now={now} /> : (
         <p className="clipboard-empty">Pick a desk to pin what that person is doing here.</p>
       )}
-      {children}
     </aside>
   );
 }
 
-type AgentDetailsProps = Omit<ClipboardProps, 'children' | 'agent'> & { agent: AgentState };
+type AgentDetailsProps = Omit<ClipboardProps, 'agent'> & { agent: AgentState };
 
 function AgentDetails({ agent: a, events, needsYou, agents, tasks, deploys, now }: AgentDetailsProps) {
   const task = tasks.find((t) => t.id === a.currentTask) ?? null;

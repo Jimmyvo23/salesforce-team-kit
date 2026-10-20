@@ -36,7 +36,7 @@ export function Flights({ l, agents, handoffs, deploys, released }: FlightsProps
     <g className="flights" aria-hidden="true">
       {handoffs.map((h) => {
         const a = deskPoint(l, agents, h.from), b = deskPoint(l, agents, h.to);
-        return a && b && <Flight key={`h-${h.from}-${h.to}-${h.time}`} kind="handoff" color={color(h.from)} path={arcPath(a, b)} />;
+        return a && b && <Flight key={`h-${h.from}-${h.to}-${h.task}-${h.time}`} kind="handoff" color={color(h.from)} path={arcPath(a, b)} />;
       })}
       {deploys.map((d) => {
         const a = deskPoint(l, agents, d.agent);

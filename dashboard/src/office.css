@@ -30,7 +30,7 @@ body {
   border: 0;
 }
 
-.scene-opening { margin: 15vh 0 0; text-align: center; font-weight: 600; }
+.scene-opening { display: table; margin: 15vh auto 0; padding: 4px 14px; border-radius: 12px; background: var(--paper); color: var(--ink); font-weight: 600; }
 
 /* Toolbar: theme and view switches, top right. Stays above the status overlay. */
 .toolbar {
