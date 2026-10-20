@@ -58,6 +58,6 @@ test('the shipped template loads with the six roles and the approver', () => {
   expect(r.team.members.map((m) => m.id)).toEqual(['planner', 'analyst', 'admin', 'developer', 'qa', 'reviewer']);
   expect(r.team.members[0].name).toBe('Architect');
   expect(r.team.approver.id).toBe('jimmy');
-  expect(r.team.orgs.sandbox.length).toBeGreaterThan(0);
+  expect(r.team.orgs.sandbox).toEqual([]); // setup fills it; the guard blocks org commands until then
   expect(r.team.orgSkill).toBe('my-org-knowledge');
 });

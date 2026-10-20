@@ -59,6 +59,9 @@ describe('first install, interactive', () => {
     expect(exists(STORY_PATH)).toBe(true);
     expect(r.out).toContain('ask the Architect to run T-000 to fill clientx-org');
     expect(r.out).not.toMatch(/Warning: the org knowledge skill/);
+    // The template's sandbox list is empty, so a first install preselects and removes nothing.
+    expect(r.out).not.toContain('[selected]');
+    expect(r.out).not.toContain('Removed from orgs.sandbox');
   });
 
   test('a bad selection is asked again', async () => {
