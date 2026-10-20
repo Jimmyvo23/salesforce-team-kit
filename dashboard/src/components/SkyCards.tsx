@@ -36,19 +36,22 @@ export function SkyScene({ l, state, mood: m }: { l: IsoLayout; state: TeamState
       </g>
       <g data-testid="vault-cloud">
         <Puff x={vx - 10} y={vy} s={1.9} fill={m.vault} />
-        <text x={vx - 10} y={vy - 14} textAnchor="middle" className="sky-title" fill={text}>
-          <tspan x={vx - 10}>🔒 Production · </tspan>
-          <tspan x={vx - 10} dy={8} className="sky-sub" fill={sub}>{`deployed by ${approver?.name ?? 'the approver'} `}</tspan>
-          <tspan x={vx - 10} dy={7} className="sky-sub" fill={sub}>via change set </tspan>
-          {released && <tspan x={vx - 10} dy={8} className="sky-sub" fill={sub}>{`${released.task} released`}</tspan>}
+        <text x={vx - 10} y={vy - 8} textAnchor="middle" className="sky-sub" fill={text}>
+          <tspan x={vx - 10} className="sky-title">Production</tspan>
+          <tspan fill={sub}>{` · deployed by ${approver?.name ?? 'the approver'} `}</tspan>
+          <tspan x={vx - 10} dy={8} fill={sub}>via change set </tspan>
+          {released && <tspan x={vx - 10} dy={8} fill={sub}>{`${released.task} released`}</tspan>}
         </text>
       </g>
       {ready.length > 0 && (
         <g data-testid="changeset-parcel" transform={`translate(${px},${py})`}>
           <rect x={-5} y={-5} width={10} height={9} rx={1.5} className="parcel" />
           <line x1={-5} y1={-1} x2={5} y2={-1} className="parcel-tape" />
-          <text x={-8} y={2} textAnchor="end" className="sky-sub parcel-text" fill={text}>
-            {`Change set ready · ${ready[0].components} component${ready[0].components === 1 ? '' : 's'}${ready.length > 1 ? ` (+${ready.length - 1} more)` : ''}`}
+          <rect className="parcel-pill" x={-62} y={-9} width={53} height={19} rx={6} />
+          <text className="sky-sub parcel-text" x={-58} y={-2}>
+            <tspan x={-58}>Change set ready</tspan>
+            <tspan opacity={0}> · </tspan>
+            <tspan x={-58} dy={7.5}>{`${ready[0].components} component${ready[0].components === 1 ? '' : 's'}${ready.length > 1 ? ` (+${ready.length - 1} more)` : ''}`}</tspan>
           </text>
         </g>
       )}

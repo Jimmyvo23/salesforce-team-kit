@@ -18,13 +18,13 @@ export interface Mood {
 
 export const PALETTES: Record<MoodName, Mood> = {
   sunrise: { label: 'Sunrise', sky: ['#ff9e80', '#ffe2c2'], win: ['#ff9e80', '#ffe2c2'], cloud: '#fff8f1', cloudFar: '#ffffff', wallA: '#fff3e8', wallB: '#f7e2d1', floor: '#fffaf5', grid: '#f4e6d8', rug: '#ffe6d8',
-    deskT: '#f6d2a9', deskL: '#e3b585', deskR: '#d2a275', mon: '#3a2b45', screen: '#ffb26b', ink: '#43263a', sub: '#8a6a72', accent: '#e0663d', jim: '#fff1c9', vault: '#ffe0cf', moon: '#fff3d6', plant: '#5aa86b',
+    deskT: '#f6d2a9', deskL: '#e3b585', deskR: '#d2a275', mon: '#3a2b45', screen: '#ffb26b', ink: '#43263a', sub: '#7f606a', accent: '#e0663d', jim: '#fff1c9', vault: '#ffe0cf', moon: '#fff3d6', plant: '#5aa86b',
     starA: 0, lampA: 0, orbX: 60, orbY: 150, orbR: 30, orbA: 0.95, dark: 0 },
   twilight: { label: 'Twilight', sky: ['#2a215f', '#9a6fd0'], win: ['#3a2f7a', '#d9a0d6'], cloud: '#efe8ff', cloudFar: '#d9ccff', wallA: '#f4f0ff', wallB: '#e1d8fb', floor: '#fbf9ff', grid: '#ece6fb', rug: '#ece4ff',
     deskT: '#ffffff', deskL: '#ddd3f8', deskR: '#cbbdf2', mon: '#2a2350', screen: '#b99cff', ink: '#2a2350', sub: '#6d6390', accent: '#7a56e6', jim: '#fff2c4', vault: '#d9ccff', moon: '#fff4d1', plant: '#58a77a',
     starA: 0.8, lampA: 0.3, orbX: 52, orbY: 44, orbR: 13, orbA: 0.9, dark: 0 },
   mint: { label: 'Mint morning', sky: ['#5cc9b5', '#e6faf4'], win: ['#5cc9b5', '#e6faf4'], cloud: '#ffffff', cloudFar: '#ffffff', wallA: '#f2fbf7', wallB: '#dcf1e8', floor: '#fbfffd', grid: '#e3f3ec', rug: '#dcf4ea',
-    deskT: '#ffffff', deskL: '#d2eadf', deskR: '#bddcd0', mon: '#1f3d3a', screen: '#6fe3c8', ink: '#173b36', sub: '#5b7a74', accent: '#0f8a6c', jim: '#fff5cf', vault: '#d5efe6', moon: '#ffffff', plant: '#3f9d6a',
+    deskT: '#ffffff', deskL: '#d2eadf', deskR: '#bddcd0', mon: '#1f3d3a', screen: '#6fe3c8', ink: '#173b36', sub: '#527068', accent: '#0f8a6c', jim: '#fff5cf', vault: '#d5efe6', moon: '#ffffff', plant: '#3f9d6a',
     starA: 0, lampA: 0, orbX: 300, orbY: 30, orbR: 16, orbA: 0, dark: 0 },
   night: { label: 'Night shift', sky: ['#0b1030', '#26326a'], win: ['#0b1030', '#3a4a90'], cloud: '#3b4680', cloudFar: '#2e3870', wallA: '#2b3460', wallB: '#232b52', floor: '#323c6b', grid: '#2b3460', rug: '#3b4880',
     deskT: '#c79a6c', deskL: '#a57a52', deskR: '#8f6844', mon: '#111531', screen: '#ffd56b', ink: '#1d2340', sub: '#5f6788', accent: '#ffd56b', jim: '#5b4a2a', vault: '#2e3870', moon: '#fff1c2', plant: '#4c9a6c',
@@ -133,7 +133,6 @@ export function moodTokens(m: Mood): Record<string, string> {
     '--lobby': m.wallA,
     '--ink': dark ? '#eef1ff' : m.ink,
     '--ink-soft': dark ? '#c9cfee' : m.sub,
-    '--line': m.grid,
     '--accent': m.accent,
   };
 }

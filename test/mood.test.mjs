@@ -66,5 +66,5 @@ test('moodTokens: night gives dark panels with light text, mint gives light pane
   expect(oklch(night['--paper'])[0]).toBeLessThan(0.45);
   expect(oklch(night['--ink'])[0]).toBeGreaterThan(0.85);
   expect(oklch(mint['--paper'])[0]).toBeGreaterThan(0.9);
-  expect(Object.keys(mint).sort()).toEqual(['--accent', '--ink', '--ink-soft', '--line', '--lobby', '--paper', '--sky', '--sky-2'].sort());
+  expect(Object.keys(mint).sort()).toEqual(['--accent', '--ink', '--ink-soft', '--lobby', '--paper', '--sky', '--sky-2'].sort());
 });
