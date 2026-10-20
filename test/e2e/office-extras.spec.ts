@@ -67,7 +67,7 @@ test.describe('needs-you sign', () => {
   });
 });
 
-test.describe('lobby task board', () => {
+test.describe('lobby task board, caps (busy)', () => {
   test('has four columns with counts and caps each at 3 tickets', async ({ page }) => {
     await open(page, 'busy');
     const board = page.getByRole('region', { name: 'Task board' });
@@ -101,14 +101,24 @@ test.describe('lobby task board', () => {
     await expect(page.locator(':focus')).toHaveText('and 2 more');
     await expect(page.locator(':focus')).toHaveAttribute('aria-expanded', 'false');
   });
+});
 
-  test('a ticket shows id, title, owner and progress when in progress', async ({ page }) => {
-    await open(page, 'busy');
-    const inProgress = page.getByRole('region', { name: 'Task board' }).getByRole('list', { name: 'In progress' });
-    const ticket = inProgress.getByRole('listitem').first();
-    await expect(ticket).toContainText('T-004');
-    await expect(ticket).toContainText('Backend');
-    await expect(ticket).toContainText('40%');
+test.describe('lobby task board', () => {
+  test.beforeEach(async ({ page }) => { await open(page, 'sf-office'); });
+
+  test('has four columns with the sf-office counts', async ({ page }) => {
+    const board = page.getByRole('region', { name: 'Task board' });
+    await expect(board).toBeVisible();
+    for (const name of ['To do, 2 tasks', 'In progress, 2 tasks', 'In review, 1 task', 'Done, 1 task']) {
+      await expect(board.getByRole('heading', { name, exact: true })).toBeVisible();
+    }
+  });
+
+  test('a ticket shows its task progress bar and stage', async ({ page }) => {
+    const board = page.getByRole('region', { name: 'Task board' });
+    const bar = board.getByRole('progressbar', { name: /T-101/ });
+    await expect(bar).toHaveAttribute('aria-valuetext', '65%, In sandbox');
+    await expect(board.getByText('65% · In sandbox')).toBeVisible();
   });
 });
 
@@ -187,15 +197,16 @@ test('with motion allowed the office does animate (control for the test above)',
 });
 
 test.describe('list view', () => {
+  test.beforeEach(async ({ page }) => { await open(page, 'sf-office'); });
+
   test('is the default on a 360 px screen', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
-    await open(page, 'busy');
+    await page.reload();
     const list = page.getByRole('region', { name: 'List view' });
     await expect(list).toBeVisible();
-    await expect(list).toContainText('Backend');
-    await expect(list).toContainText('Working, T-004');
-    await expect(list).toContainText('T-004');
-    await expect(list).toContainText('WO-3');
+    await expect(list).toContainText('Admin');
+    await expect(list).toContainText('Working, T-101');
+    await expect(list).toContainText('T-101');
     await expect(page.getByRole('region', { name: 'Office' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Office view' }).click();
     await expect(page.getByRole('region', { name: 'Office' })).toBeVisible();
@@ -203,7 +214,6 @@ test.describe('list view', () => {
   });
 
   test('desktop opens in the office and can switch to the list', async ({ page }) => {
-    await open(page, 'busy');
     await expect(page.getByRole('region', { name: 'Office' })).toBeVisible();
     await page.getByRole('button', { name: 'List view' }).click();
     await expect(page.getByRole('region', { name: 'List view' })).toContainText('Reviewer');
@@ -254,7 +264,7 @@ test('re-activating a pinned desk unpins it', async ({ page }) => {
   await expect(backend).toHaveAttribute('aria-pressed', 'true');
   await backend.click();
   await expect(backend).toHaveAttribute('aria-pressed', 'false');
-  await expect(details(page)).toContainText('Pick a room');
+  await expect(details(page)).toContainText('Pick a desk to pin what that person is doing here.');
 });
 
 test('focus order follows the team: members in order, the approver last', async ({ page }) => {

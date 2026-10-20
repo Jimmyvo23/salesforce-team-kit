@@ -59,7 +59,7 @@ test('clicking a desk pins its clipboard', async ({ page }) => {
   await expect(details(page)).toContainText('Admin');
   await expect(details(page)).toContainText('Flows, objects, permissions');
   await expect(details(page)).toContainText('Hand the flow to QA');
-  await expect(details(page).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '60');
+  await expect(details(page).getByRole('progressbar', { name: 'Progress' })).toHaveAttribute('aria-valuenow', '60');
   await expect(details(page)).toContainText('Updated 2 min ago');
   await expect(page.getByRole('button', { name: /^Admin,/ })).toHaveAttribute('aria-pressed', 'true');
 });

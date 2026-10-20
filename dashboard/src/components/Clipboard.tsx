@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import type { AgentLogEntry, AgentState, NeedsYouItem } from '../types';
+import type { AgentLogEntry, AgentState, Deploy, NeedsYouItem, Task } from '../types';
+import { lastDeployBy, deployLine } from '../office-data';
+import { ProgressBar } from './ProgressBar';
 import { ago, clockTime, needsYouLine, NOTHING_ASSIGNED, staleWarning, STATE_LABELS } from '../labels';
 
 export const CLIPBOARD_EVENTS = 20;
@@ -13,6 +15,10 @@ export interface ClipboardProps {
   needsYou: NeedsYouItem[];
   /** All agents, for names in the needs-you list. */
   agents: AgentState[];
+  /** All tasks, to show the pinned agent's current task bar. */
+  tasks: Task[];
+  /** All sandbox deploys, to show the pinned agent's last one. */
+  deploys: Deploy[];
   /** Server clock (state.updatedAt); every relative time is measured against it. */
   now: string;
   /** Extra content under the details (Task 14: everything that needs Jimmy). */
@@ -20,11 +26,11 @@ export interface ClipboardProps {
 }
 
 /** The clipboard on the right: details of the pinned agent. */
-export function Clipboard({ agent, events, needsYou, agents, now, children }: ClipboardProps) {
+export function Clipboard({ agent, events, needsYou, agents, tasks, deploys, now, children }: ClipboardProps) {
   return (
     <aside className="clipboard" aria-label="Details">
-      {agent ? <AgentDetails agent={agent} events={events} needsYou={needsYou} agents={agents} now={now} /> : (
-        <p className="clipboard-empty">Pick a room to pin what that person is doing here.</p>
+      {agent ? <AgentDetails agent={agent} events={events} needsYou={needsYou} agents={agents} tasks={tasks} deploys={deploys} now={now} /> : (
+        <p className="clipboard-empty">Pick a desk to pin what that person is doing here.</p>
       )}
       {children}
     </aside>
@@ -33,7 +39,9 @@ export function Clipboard({ agent, events, needsYou, agents, now, children }: Cl
 
 type AgentDetailsProps = Omit<ClipboardProps, 'children' | 'agent'> & { agent: AgentState };
 
-function AgentDetails({ agent: a, events, needsYou, agents, now }: AgentDetailsProps) {
+function AgentDetails({ agent: a, events, needsYou, agents, tasks, deploys, now }: AgentDetailsProps) {
+  const task = tasks.find((t) => t.id === a.currentTask) ?? null;
+  const deploy = lastDeployBy(a.id, deploys);
   const stale = staleWarning(a, now);
   const recent = events.slice(-CLIPBOARD_EVENTS).reverse();
   const fill = a.status === 'blocked' ? 'var(--alert)' : a.color;
@@ -86,6 +94,18 @@ function AgentDetails({ agent: a, events, needsYou, agents, now }: AgentDetailsP
               </div>
               {a.stoppedAtProgress !== null && <span className="clipboard-note">Stopped at {a.stoppedAtProgress}%</span>}
             </dd>
+            {task && (
+              <>
+                <dt>Task</dt>
+                <dd><ProgressBar label={`${task.id} ${task.title}`} progress={task.progress} stage={task.stage} color={a.color} /></dd>
+              </>
+            )}
+            {deploy && (
+              <>
+                <dt>Last deploy</dt>
+                <dd>{`${deploy.org} · ${deployLine(deploy)}`} <span className="clipboard-note">{ago(deploy.time, now)}</span></dd>
+              </>
+            )}
             <dt>Next step</dt>
             <dd>{a.nextStep ?? 'Not set yet'}</dd>
           </>

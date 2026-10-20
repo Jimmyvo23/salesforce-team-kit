@@ -119,6 +119,8 @@ function Office({ state, mood, approver, handoffs, deploys, released, selectedId
         events={selected ? state.agentLogs[selected.id] ?? [] : []}
         needsYou={state.needsYou}
         agents={state.agents}
+        tasks={state.tasks}
+        deploys={state.deploys}
         now={state.updatedAt}
       />
     </div>

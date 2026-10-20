@@ -70,3 +70,26 @@ test('a handoff flies a folder and labels the receiver', async ({ page }) => {
   await expect(page.getByTestId('flight-handoff')).toBeVisible({ timeout: 5000 });
   await expect(page.locator('[data-agent="qa"] .chip-task')).toHaveText('New from Admin');
 });
+
+test('clipboard shows the agent task bar and last deploy', async ({ page }) => {
+  await page.goto(office.url);
+  await page.getByRole('button', { name: /^Admin, working/ }).click();
+  const details = page.getByRole('complementary', { name: 'Details' });
+  await expect(details.getByRole('progressbar', { name: /T-101/ })).toHaveAttribute('aria-valuetext', '65%, In sandbox');
+  await expect(details).toContainText('Last deploy');
+  await expect(details).toContainText('cleanup-sandbox · ✓ passed · 142/142 tests · 87%');
+});
+
+test('list view: task rows carry % and stage; releases, deploys and guard blocks are listed', async ({ page }) => {
+  await page.goto(office.url);
+  await page.getByRole('button', { name: 'List view' }).click();
+  const list = page.getByRole('region', { name: 'List view' });
+  await expect(list).toContainText('T-101 Renewal discount flow, Admin · 65% · In sandbox');
+  await expect(list.getByRole('heading', { name: 'Releases' })).toBeVisible();
+  await expect(list).toContainText('T-104 Change set ready · 3 components');
+  await expect(list).toContainText('T-100 Released');
+  await expect(list.getByRole('heading', { name: 'Sandbox deploys' })).toBeVisible();
+  await expect(list).toContainText('sandbox by Developer · ✗ failed · 140/141 tests · 81%');
+  await expect(list.getByRole('heading', { name: 'Guard blocks' })).toBeVisible();
+  await expect(list).toContainText('Developer: prod is not a sandbox alias');
+});
