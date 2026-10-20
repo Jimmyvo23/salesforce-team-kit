@@ -25,7 +25,7 @@ test('Tasks card lists active tasks with progress and stage', async ({ page }) =
 
 test('sandbox cloud shows the latest deploy in words', async ({ page }) => {
   await page.goto(office.url);
-  await expect(page.getByTestId('sandbox-cloud')).toContainText('sandbox');
+  await expect(page.getByTestId('sandbox-cloud')).toContainText('Sandbox');
   await expect(page.getByTestId('sandbox-cloud')).toContainText('✗ failed · 140/141 tests · 81%');
 });
 
@@ -92,4 +92,19 @@ test('list view: task rows carry % and stage; releases, deploys and guard blocks
   await expect(list).toContainText('sandbox by Developer · ✗ failed · 140/141 tests · 81%');
   await expect(list.getByRole('heading', { name: 'Guard blocks' })).toBeVisible();
   await expect(list).toContainText('Developer: prod is not a sandbox alias');
+});
+
+test('reduced motion: no animation runs anywhere in the scene, desks keep state colours', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto(office.url);
+  await expect(page.getByRole('region', { name: 'Office' })).toBeVisible();
+  const running = await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length);
+  expect(running).toBe(0);
+  await expect(page.locator('[data-agent="developer"]')).toHaveClass(/is-blocked/);
+});
+
+test('phone width opens the list view', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto(office.url);
+  await expect(page.getByRole('region', { name: 'List view' })).toBeVisible();
 });

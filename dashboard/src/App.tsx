@@ -104,7 +104,7 @@ function Office({ state, mood, approver, handoffs, deploys, released, selectedId
           overlays={(l) => (
             <>
               {approver && (
-                <div className="iso-sign" style={pct(l, project(l, 9.6, l.approver.y0 + 0.4, 2.6))}>
+                <div className="iso-sign" style={pct(l, [l.width - 6, project(l, 9.6, l.approver.y0 + 0.4, 2.6)[1]])}>
                   <NeedsYouSign approver={approver} items={state.needsYou} agents={state.agents} onOpen={() => setSelectedId(approver.id)} />
                 </div>
               )}

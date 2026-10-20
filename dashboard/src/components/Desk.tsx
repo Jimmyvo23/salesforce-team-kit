@@ -3,7 +3,7 @@ import type { AgentState } from '../types';
 import type { IsoLayout } from '../iso';
 import { boxFaces, project } from '../iso';
 import type { Mood } from '../mood';
-import { deskLabel, NOTHING_ASSIGNED, STATE_LABELS } from '../labels';
+import { deskLabel, STATE_LABELS } from '../labels';
 import { deskState } from '../office-data';
 
 export interface DeskProps {
@@ -19,7 +19,7 @@ export interface DeskProps {
   onSelect: (id: string) => void;
 }
 
-const SHORT = 26;
+const SHORT = 22;
 const short = (s: string) => (s.length > SHORT ? `${s.slice(0, SHORT - 1)}…` : s);
 
 /** One desk: floor glow, person, desk box, monitor showing the state, and the name chip. */
@@ -30,8 +30,9 @@ export function Desk({ l, agent: a, x, y, mood, selected, plaque, describedBy, o
   const [gx, gy] = project(l, x + 0.75, y + 0.4);
   const [px, py] = project(l, x + 0.7, y - 0.55, 0.45);
   const [sx, sy] = project(l, x + 0.75, y + 0.1, 0.83);
-  const line = plaque ?? `${STATE_LABELS[a.status]} · ${short(a.currentTask ?? NOTHING_ASSIGNED)}`;
-  const w = Math.max(a.name.length * 4, line.length * 3.3) + 18;
+  // No task: the state alone ("On a break"); the full wording stays in the aria-label and the preview.
+  const line = plaque ?? (a.currentTask ? `${STATE_LABELS[a.status]} · ${short(a.currentTask)}` : STATE_LABELS[a.status]);
+  const w = Math.max(a.name.length * 4, line.length * 2.9) + 17;
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(a.id); }
   };

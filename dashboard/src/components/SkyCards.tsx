@@ -6,6 +6,8 @@ import { ProgressBar } from './ProgressBar';
 import { activeTasks, deployLine, guardBubbles, lastReleased, latestDeploy, readyReleases } from '../office-data';
 import { agentName } from '../labels';
 
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
 /** SVG: sandbox cloud (top right), production vault (bottom right), change-set parcel on the approver desk. */
 export function SkyScene({ l, state, mood: m }: { l: IsoLayout; state: TeamState; mood: Mood }) {
   const dep = latestDeploy(state.deploys);
@@ -14,29 +16,38 @@ export function SkyScene({ l, state, mood: m }: { l: IsoLayout; state: TeamState
   const ready = readyReleases(state.releases);
   const [sx, sy] = l.sandbox, [vx, vy] = l.vault;
   const text = m.dark >= 0.5 ? '#ffffff' : m.ink;
-  const sub = m.dark >= 0.5 ? '#c9cfee' : m.sub;
+  // Cloud captions use the full ink on light clouds: the palette's softer sub colour is under 4.5:1 on the vault fill.
+  const sub = m.dark >= 0.5 ? '#c9cfee' : m.ink;
+  // Failed-deploy text: dark red on light clouds, light red on the night cloud (both above 4.5:1).
+  const bad = m.dark >= 0.5 ? '#ffb4ae' : '#b3261e';
   const [px, py] = project(l, l.approver.desk.x + 0.6, l.approver.desk.y, 0.9);
   return (
     <>
       <g className="float" data-testid="sandbox-cloud">
         <Puff x={sx} y={sy} s={1.7} fill={m.cloud} />
-        <text x={sx} y={sy - 2} textAnchor="middle" className="sky-title" fill={text}>{dep ? dep.org : 'Sandbox'}</text>
-        <text x={sx} y={sy + 7} textAnchor="middle" className="sky-sub" fill={dep?.result === 'failed' ? 'var(--alert)' : sub}>
+        <text x={sx} y={sy - 9} textAnchor="middle" className="sky-title" fill={text}>
+          <tspan x={sx}>Sandbox </tspan>
+          {dep && dep.org.toLowerCase() !== 'sandbox' && <tspan x={sx} dy={8} className="sky-sub" fill={sub}>{`· ${clip(dep.org, 18)}`}</tspan>}
+        </text>
+        <text x={sx} y={sy + 8} textAnchor="middle" className="sky-sub" fill={dep?.result === 'failed' ? bad : sub}>
           {dep ? deployLine(dep) : 'No deploys yet'}
         </text>
+        {dep && <title>{`Sandbox · ${dep.org}`}</title>}
       </g>
       <g data-testid="vault-cloud">
-        <Puff x={vx} y={vy} s={1.9} fill={m.vault} />
-        <text x={vx} y={vy - 3} textAnchor="middle" className="sky-title" fill={text}>🔒 Production</text>
-        <text x={vx} y={vy + 5} textAnchor="middle" className="sky-sub" fill={sub}>{`deployed by ${approver?.name ?? 'the approver'} via change set`}</text>
-        {released && <text x={vx} y={vy + 12} textAnchor="middle" className="sky-sub" fill={sub}>{`${released.task} released`}</text>}
-        <title>{`Production · deployed by ${approver?.name ?? 'the approver'} via change set`}</title>
+        <Puff x={vx - 10} y={vy} s={1.9} fill={m.vault} />
+        <text x={vx - 10} y={vy - 14} textAnchor="middle" className="sky-title" fill={text}>
+          <tspan x={vx - 10}>🔒 Production · </tspan>
+          <tspan x={vx - 10} dy={8} className="sky-sub" fill={sub}>{`deployed by ${approver?.name ?? 'the approver'} `}</tspan>
+          <tspan x={vx - 10} dy={7} className="sky-sub" fill={sub}>via change set </tspan>
+          {released && <tspan x={vx - 10} dy={8} className="sky-sub" fill={sub}>{`${released.task} released`}</tspan>}
+        </text>
       </g>
       {ready.length > 0 && (
         <g data-testid="changeset-parcel" transform={`translate(${px},${py})`}>
           <rect x={-5} y={-5} width={10} height={9} rx={1.5} className="parcel" />
           <line x1={-5} y1={-1} x2={5} y2={-1} className="parcel-tape" />
-          <text x={8} y={2} className="sky-sub parcel-text" fill={text}>
+          <text x={-8} y={2} textAnchor="end" className="sky-sub parcel-text" fill={text}>
             {`Change set ready · ${ready[0].components} component${ready[0].components === 1 ? '' : 's'}${ready.length > 1 ? ` (+${ready.length - 1} more)` : ''}`}
           </text>
         </g>

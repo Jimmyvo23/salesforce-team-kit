@@ -85,6 +85,8 @@ npm run office -- --project "../my-project"
 
 It prints `Office is open at http://127.0.0.1:4317` and opens your browser. The dashboard binds to `127.0.0.1` only.
 
+The office is an isometric cloud office: one desk per team member with a name chip showing their state and task, and the approver in a glass office with a "needs you" sign when something waits on them. Sky clouds show the Tasks list, the sandbox's latest deploy and the production vault ("deployed by <approver> via change set"). Handoffs, sandbox deploys and change sets fly between desks and clouds as small parcels. The task board hangs in the lobby below, and the clipboard on the right shows whoever you pin. The mood picker offers Auto (follows your clock) plus four moods: Night shift, Sunrise, Mint morning and Twilight; the pick is remembered in the browser. Screens narrower than 480 px open a plain list view, and the toolbar switches between the two. With reduced motion turned on in your system, nothing animates: parcels are replaced by the state colours and the "New from" plaque on the receiving desk.
+
 ## How a task runs
 
 1. You talk to Claude Code in the project. The main session is the Architect and follows `.team/planner.md`.

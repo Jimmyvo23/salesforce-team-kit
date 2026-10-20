@@ -1,6 +1,6 @@
 /*
  * Design tokens for the office. Sky, paper, lobby, ink and the chrome colours come from useMood
- * (inline on <html>); data-dark switches the pill and glow tokens below. office.css never changes per mood.
+ * (inline on <html>); data-dark switches the dark-scene tokens below. office.css never changes per mood.
  * Components never use raw colours; agent colours come from team.json at runtime (--wall, --owner).
  */
 :root {
@@ -15,17 +15,9 @@
   --approval: #ffc233;
 
   /* Scene */
-  --grass: #e8f6d9;
   --grass-2: #cfe8b4;
   --cloud: #ffffff;
-  --on-frame: #ffffff;
   --clip-metal: #9aa0a6;
-
-  /* Room lights */
-  --glow-working: rgba(255, 236, 150, 0.75);
-  --glow-blocked: rgba(242, 92, 84, 0.55);
-  --glow-waiting: rgba(255, 194, 51, 0.6);
-  --lights-dimmed: brightness(0.86) saturate(0.75);
 
   /* State pills and plaques (tinted so ink text stays readable) */
   --pill-working: #c8f2dc;
@@ -38,7 +30,6 @@
   /* Surfaces */
   --lobby: #e9f4f1;
   --ink-soft: #5b7a74;
-  --line: #e3f3ec;
   --accent: #0f8a6c;
   --overlay: rgba(46, 42, 79, 0.35);
   --meter-track: #ffffff;
@@ -50,16 +41,12 @@
   color-scheme: light;
 }
 
-/* Dark mood: pills, glow and shadow tokens. Sky, paper, lobby and ink come from moodTokens. */
+/* Dark mood: scene and shadow tokens. Sky, paper, lobby and ink come from moodTokens. */
 :root[data-dark='true'] {
   --frame: #1d4a4d;
   --wood: #9c6a3c;
-  --grass: #2a4436;
   --grass-2: #1f3529;
   --cloud: #4b5287;
   --overlay: rgba(10, 12, 30, 0.55);
-  --glow-working: rgba(255, 226, 120, 0.95);
-  --glow-waiting: rgba(255, 194, 51, 0.8);
-  --lights-dimmed: brightness(0.62) saturate(0.6);
   --hard-shadow: 4px 5px 0 #0d1129;
 }

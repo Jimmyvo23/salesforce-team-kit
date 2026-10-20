@@ -273,3 +273,16 @@ test('focus order follows the team: members in order, the approver last', async 
     .evaluateAll((els) => els.map((e) => e.getAttribute('data-agent')));
   expect(names).toEqual(['planner', 'analyst', 'admin', 'developer', 'qa', 'reviewer', 'jimmy']);
 });
+
+test('screenshots of the four moods at fixed times', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await open(page, 'sf-office');
+  for (const [name, hour] of [['night', 2], ['sunrise', 8], ['mint', 12], ['twilight', 18]] as const) {
+    await page.clock.setFixedTime(new Date(2026, 9, 20, hour, 0));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(office!.url);
+    await expect(page.getByRole('region', { name: 'Office' })).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    await page.screenshot({ path: test.info().outputPath(`mood-${name}.png`), fullPage: true });
+  }
+});
