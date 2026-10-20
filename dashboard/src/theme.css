@@ -40,7 +40,6 @@
   --ink-soft: #5b7a74;
   --line: #e3f3ec;
   --accent: #0f8a6c;
-  --tube-glass: rgba(255, 255, 255, 0.55);
   --overlay: rgba(46, 42, 79, 0.35);
   --meter-track: #ffffff;
   --hard-shadow: 4px 5px 0 var(--ink);
@@ -58,7 +57,6 @@
   --grass: #2a4436;
   --grass-2: #1f3529;
   --cloud: #4b5287;
-  --tube-glass: rgba(201, 236, 255, 0.35);
   --overlay: rgba(10, 12, 30, 0.55);
   --glow-working: rgba(255, 226, 120, 0.95);
   --glow-waiting: rgba(255, 194, 51, 0.8);

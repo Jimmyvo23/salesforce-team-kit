@@ -360,7 +360,6 @@ body {
 
 @keyframes drift { from { left: -120px; } to { left: 110%; } }
 @keyframes swing { 0%, 100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
-}
 
 /* Isometric office (spec 8.2). Scene colours come from the mood (inline fills); state colours from tokens. */
 .iso-office { flex: 1 1 640px; min-width: 0; }
