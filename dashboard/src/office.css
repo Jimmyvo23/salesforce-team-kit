@@ -463,3 +463,23 @@ body {
 @keyframes typing { to { transform: translateY(-0.6px); } }
 @keyframes saver { to { transform: translate(2px, 1px); } }
 @keyframes puff-drift { from { transform: translateX(-60px); } to { transform: translateX(420px); } }
+
+/* Sky cards (Tasks card, clouds, parcel, guard bubbles) */
+.sky-title { font-size: 6.5px; font-weight: 700; }
+.sky-sub { font-size: 5.5px; }
+.parcel { fill: var(--approval); stroke: #2a2f45; stroke-width: 0.7; }
+.parcel-tape { stroke: #2a2f45; stroke-width: 0.6; }
+.tasks-card { position: absolute; top: 2%; left: 2%; width: min(34%, 240px); padding: 8px 10px; border-radius: 16px;
+  background: var(--paper); color: var(--ink); box-shadow: 0 4px 14px rgb(0 0 0 / 0.12); font-size: 0.75rem; z-index: 1; }
+.tasks-card h2 { margin: 0 0 4px; font-size: 0.8rem; }
+.tasks-card ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.tasks-card-name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-bar { display: flex; align-items: center; gap: 6px; }
+.task-bar .meter { flex: 1; margin-top: 0; }
+.task-bar-text { white-space: nowrap; color: var(--ink-soft); font-size: 0.7rem; }
+.guard-bubble { position: absolute; transform: translate(-50%, -100%); padding: 3px 8px; border-radius: 10px;
+  background: var(--alert); color: #fff; font-size: 0.7rem; font-weight: 700; white-space: nowrap; z-index: 2; pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .float { animation: float 6s ease-in-out infinite alternate; }
+}
+@keyframes float { to { transform: translateY(-3px); } }

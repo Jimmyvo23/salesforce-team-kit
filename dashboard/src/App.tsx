@@ -10,6 +10,7 @@ import type { Flight } from './components/MailTube';
 import { NeedsYouSign } from './components/NeedsYouSign';
 import { StatusOverlay } from './components/StatusOverlay';
 import { MoodPicker } from './components/MoodPicker';
+import { SkyOverlays, SkyScene } from './components/SkyCards';
 import { project } from './iso';
 import type { Mood } from './mood';
 import { useMood } from './useMood';
@@ -126,10 +127,16 @@ function Office({ state, mood, approver, arrivals, selectedId, setSelectedId }: 
           selectedId={selected?.id ?? null}
           onSelect={(id) => setSelectedId((cur) => (cur === id ? null : id))}
           plaques={plaques}
-          overlays={(l) => approver && (
-            <div className="iso-sign" style={pct(l, project(l, 9.6, l.approver.y0 + 0.4, 2.6))}>
-              <NeedsYouSign approver={approver} items={state.needsYou} agents={state.agents} onOpen={() => setSelectedId(approver.id)} />
-            </div>
+          scene={(l) => <SkyScene l={l} state={state} mood={mood} />}
+          overlays={(l) => (
+            <>
+              {approver && (
+                <div className="iso-sign" style={pct(l, project(l, 9.6, l.approver.y0 + 0.4, 2.6))}>
+                  <NeedsYouSign approver={approver} items={state.needsYou} agents={state.agents} onOpen={() => setSelectedId(approver.id)} />
+                </div>
+              )}
+              <SkyOverlays l={l} state={state} />
+            </>
           )}
         />
         <Lobby tasks={state.tasks} agents={state.agents} />
