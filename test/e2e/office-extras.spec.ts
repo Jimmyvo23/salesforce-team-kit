@@ -133,16 +133,28 @@ test('a visitor hot desk appears only after an unknown agent is active', async (
   await expect(office$.getByText('Hot desk')).toBeVisible();
 });
 
-test('theme choice survives a reload', async ({ page }) => {
+test('mood picker offers Auto plus four moods, Auto checked by default', async ({ page }) => {
   await open(page, 'busy');
-  const themes = page.getByRole('radiogroup', { name: 'Theme' });
-  await expect(themes.getByRole('radio', { name: 'Cozy day' })).toBeChecked();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'day');
-  await themes.getByRole('radio', { name: 'Night shift' }).check();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
+  const picker = page.getByRole('radiogroup', { name: 'Mood' });
+  await expect(picker.getByRole('radio')).toHaveCount(5);
+  await expect(picker.getByRole('radio', { name: 'Auto' })).toBeChecked();
+});
+
+test('pinned mood survives a reload and sets dark panels for Night shift', async ({ page }) => {
+  await open(page, 'busy');
+  await page.getByRole('radio', { name: 'Night shift' }).check();
   await page.reload();
-  await expect(page.getByRole('radiogroup', { name: 'Theme' }).getByRole('radio', { name: 'Night shift' })).toBeChecked();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
+  await expect(page.getByRole('radio', { name: 'Night shift' })).toBeChecked();
+  await expect(page.locator('html')).toHaveAttribute('data-dark', 'true');
+});
+
+test('Auto follows the clock: 12:00 is Mint morning, 22:00 is dark', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 9, 20, 12, 0));
+  await open(page, 'busy');
+  await expect(page.locator('html')).toHaveAttribute('data-dark', 'false');
+  await page.clock.setFixedTime(new Date(2026, 9, 20, 22, 0));
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-dark', 'true');
 });
 
 test('the office works when storage is blocked', async ({ page }) => {
@@ -150,8 +162,8 @@ test('the office works when storage is blocked', async ({ page }) => {
     Object.defineProperty(window, 'localStorage', { get() { throw new Error('blocked'); } });
   });
   await open(page, 'busy');
-  await page.getByRole('radio', { name: 'Pastel' }).check();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'pastel');
+  await page.getByRole('radio', { name: 'Sunrise' }).check();
+  await expect(page.locator('html')).toHaveAttribute('data-mood', 'sunrise');
   await expect(page.getByRole('button', { name: /^Backend:/ })).toBeVisible();
 });
 
@@ -205,18 +217,18 @@ test('a broken team file explains the problem', async ({ page }) => {
   await expect(alert).toContainText('Fix .team/team.json and this page will reload.');
 });
 
-test('the theme survives the switch from the problem page to the office with storage blocked', async ({ page }) => {
+test('the mood survives the switch from the problem page to the office with storage blocked', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'localStorage', { get() { throw new Error('blocked'); } });
   });
   await open(page, 'bad-team');
   await expect(page.getByRole('heading', { name: 'The team file has a problem' })).toBeVisible();
-  await page.getByRole('radio', { name: 'Pastel' }).check();
+  await page.getByRole('radio', { name: 'Night shift' }).check();
   fs.copyFileSync(path.join('test', 'fixtures', 'projects', 'busy', '.team', 'team.json'),
     path.join(office!.projectDir, '.team', 'team.json'));
   await expect(page.getByRole('heading', { name: 'CookNeighbour team' })).toBeVisible({ timeout: 4000 });
-  await expect(page.getByRole('radio', { name: 'Pastel' })).toBeChecked();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'pastel');
+  await expect(page.getByRole('radio', { name: 'Night shift' })).toBeChecked();
+  await expect(page.locator('html')).toHaveAttribute('data-mood', 'night');
 });
 
 test('stopping the server shows the reconnecting overlay over the last state', async ({ page }) => {
@@ -228,7 +240,7 @@ test('stopping the server shows the reconnecting overlay over the last state', a
   await expect(page.getByRole('heading', { name: 'CookNeighbour team' })).toBeAttached();
   // The toolbar stays usable above the overlay.
   await page.getByRole('radio', { name: 'Night shift' }).click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
+  await expect(page.locator('html')).toHaveAttribute('data-mood', 'night');
   await page.getByRole('button', { name: 'List view' }).click();
   await expect(page.getByRole('button', { name: 'Office view' })).toBeVisible();
 });
@@ -248,25 +260,4 @@ test('focus order follows the layout: the approver comes right after the top row
   const names = await page.getByRole('region', { name: 'Office' }).locator('[data-agent]')
     .evaluateAll((els) => els.map((e) => e.getAttribute('data-agent')));
   expect(names.slice(0, 3)).toEqual(['planner', 'backend', 'jimmy']);
-});
-
-test('screenshots of the three themes', async ({ page }) => {
-  test.skip(!process.env.UPDATE_SCREENSHOT, 'set UPDATE_SCREENSHOT=1 to refresh docs/screenshots/office-*.png');
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await open(page, 'busy');
-  await sign(page).click();
-  await page.mouse.move(0, 0);
-  await page.evaluate(() => document.fonts.ready);
-  for (const [label, file] of [['Cozy day', 'day'], ['Night shift', 'night'], ['Pastel', 'pastel']]) {
-    await page.getByRole('radio', { name: label }).check();
-    await page.mouse.move(0, 0);
-    await page.screenshot({ path: path.join('docs', 'screenshots', `office-theme-${file}.png`), fullPage: true });
-  }
-  await page.getByRole('radio', { name: 'Cozy day' }).check();
-  await page.setViewportSize({ width: 360, height: 740 });
-  await page.reload();
-  await expect(page.getByRole('region', { name: 'List view' })).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
-  await page.screenshot({ path: path.join('docs', 'screenshots', 'office-phone-list.png'), fullPage: true });
 });

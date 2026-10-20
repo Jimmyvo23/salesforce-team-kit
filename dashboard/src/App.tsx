@@ -9,7 +9,8 @@ import { ListView } from './components/ListView';
 import { MailTube, type Flight } from './components/MailTube';
 import { NeedsYouSign } from './components/NeedsYouSign';
 import { StatusOverlay } from './components/StatusOverlay';
-import { ThemeToggle } from './components/ThemeToggle';
+import { MoodPicker } from './components/MoodPicker';
+import { useMood } from './useMood';
 
 /** How long the receiver's plaque reads "New from <sender>". */
 export const NEWS_MS = 4000;
@@ -64,12 +65,14 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [listView, setListView] = useState(() => window.matchMedia(NARROW).matches);
   const arrivals = useArrivals(state);
+  // Task 5 passes `mood` down to the office.
+  const { choice, setChoice } = useMood();
 
   const approver = state?.agents.find((a) => a.isApprover) ?? null;
   const needsTitle = state && approver && state.needsYou.length > 0
     ? needsYouTitle(approver.name, state.needsYou.length) : '';
 
-  // One tree for every state, so the toolbar (and its theme) never remounts.
+  // One tree for every state, so the toolbar (and its mood picker) never remounts.
   return (
     <main className="scene">
       {state && (
@@ -79,7 +82,7 @@ export function App() {
         </>
       )}
       <div className="toolbar">
-        <ThemeToggle />
+        <MoodPicker choice={choice} setChoice={setChoice} />
         <button type="button" className="view-toggle" onClick={() => setListView((v) => !v)}>
           {listView ? 'Office view' : 'List view'}
         </button>

@@ -43,18 +43,18 @@ body {
   max-width: 1120px;
   margin: 0 auto 4px;
 }
-.theme-toggle, .view-toggle {
+.mood-picker, .view-toggle {
   background: var(--paper);
   border: 2px solid var(--ink);
   border-radius: 20px;
   font: 600 13px/1 var(--font);
   color: var(--ink);
 }
-.theme-toggle { display: flex; padding: 2px; }
-.theme-toggle label { position: relative; padding: 5px 10px; border-radius: 16px; cursor: pointer; }
-.theme-toggle label.is-on { background: var(--ink); color: var(--paper); }
-.theme-toggle input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
-.theme-toggle label:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }
+.mood-picker { display: flex; padding: 2px; }
+.mood-picker label { position: relative; padding: 5px 10px; border-radius: 16px; cursor: pointer; }
+.mood-picker label.is-on { background: var(--ink); color: var(--paper); }
+.mood-picker input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.mood-picker label:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }
 .view-toggle { padding: 7px 14px; cursor: pointer; }
 .view-toggle:focus-visible, .needs-sign:focus-visible, .lobby-more:focus-visible {
   outline: 3px solid var(--ink);
